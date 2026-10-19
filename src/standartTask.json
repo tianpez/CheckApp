@@ -1,0 +1,147 @@
+[
+  {
+    "id": 2,
+    "date": "2026-10-10",
+    "period": "daily",
+    "title": "Apertura DESAYUNO BUFFET",
+    "time": "07:00",
+    "status": "Pendiente",
+    "completed": false,
+    "description": "Apertura del buffet de desayuno.",
+    "checklist": [
+      {
+        "id": 1,
+        "text": "Presentar variedades de Pan y bollería",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "text": "Sacar placas de hielo",
+        "completed": false
+      },
+      {
+        "id": 3,
+        "text": "Presentar variedades de Leche,zumos y Agua",
+        "completed": false
+      },
+      {
+        "id": 4,
+        "text": "Presentar y rellenar cajon de fruta(cuarto frío)",
+        "completed": false
+      },
+      {
+        "id": 5,
+        "text": "Presentar variedades de Cereales y Mermeladas",
+        "completed": false
+      },
+      {
+        "id": 6,
+        "text": "Verificar cartelitos",
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "date": "2026-10-11",
+    "period": "daily",
+    "title": "Apertura CAJA REVO",
+    "time": "07:00",
+    "status": "Pendiente",
+    "completed": false,
+    "description": "Apertura de la caja.",
+    "checklist": [
+      {
+        "id": 1,
+        "text": "Abrir turno Desayun - 0€",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "text": "Abrir turno Room Service - 0€",
+        "completed": false
+      },
+      {
+        "id": 3,
+        "text": "Apertura GatroBar - 60.10€",
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "date": "2026-10-11",
+    "period": "daily",
+    "title": "Apertura GASTROBAR",
+    "time": "07:00",
+    "status": "Pendiente",
+    "completed": false,
+    "description": "Apertura del gastrobar.",
+    "checklist": [
+      {
+        "id": 1,
+        "text": "Abrir y encender cartas y atriles de Gastrobar",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "text": "Poner agua aromatizada en recepción-12:00",
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "date": "2026-10-12",
+    "period": "monthly",
+    "title": "Auditoría de equipos y cristalería",
+    "time": "09:00",
+    "status": "Pendiente",
+    "completed": false,
+    "description": "Comprueba copas y platos.",
+    "checklist": [
+      {
+        "id": 1,
+        "text": "Revisar los materiales y el espacio de trabajo",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "text": "Realizar la tarea: Auditoría de equipos y cristalería",
+        "completed": false
+      },
+      {
+        "id": 3,
+        "text": "Comprobar el resultado y dejar el área lista",
+        "completed": false
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "date": "2026-10-12",
+    "period": "monthly",
+    "title": "Revisión de menús y tendencias",
+    "time": "14:30",
+    "status": "En curso",
+    "completed": false,
+    "description": "Analiza nuevas propuestas.",
+    "checklist": [
+      {
+        "id": 1,
+        "text": "Revisar los materiales y el espacio de trabajo",
+        "completed": false
+      },
+      {
+        "id": 2,
+        "text": "Realizar la tarea: Revisión de menús y tendencias",
+        "completed": false
+      },
+      {
+        "id": 3,
+        "text": "Comprobar el resultado y dejar el área lista",
+        "completed": false
+      }
+    ]
+  }
+]
