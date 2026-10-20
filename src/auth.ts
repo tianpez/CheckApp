@@ -2,6 +2,7 @@ export type UserRole = 'admin' | 'user'
 
 export type AppAccount = {
   username: string
+  employeeName: string
   pin: string
   role: UserRole
 }
@@ -9,8 +10,8 @@ export type AppAccount = {
 export const ACCOUNTS_STORAGE_KEY = 'andy-app-accounts'
 
 export const INITIAL_ACCOUNTS: AppAccount[] = [
-  { username: 'admin', pin: '123456', role: 'admin' },
-  { username: 'user', pin: '000000', role: 'user' },
+  { username: 'admin', employeeName: 'Administrador', pin: '123456', role: 'admin' },
+  { username: 'user', employeeName: 'Usuario', pin: '000000', role: 'user' },
 ]
 
 export function isValidPin(pin: string): boolean {
@@ -27,6 +28,10 @@ export function parseAccountsJson(json: string): AppAccount[] {
         typeof account === 'object' &&
         typeof account.username === 'string' &&
         /^[a-zA-Z0-9]{3,24}$/.test(account.username) &&
+        (account.employeeName === undefined ||
+          (typeof account.employeeName === 'string' &&
+            account.employeeName.trim().length > 0 &&
+            account.employeeName.trim().length <= 80)) &&
         isValidPin(account.pin) &&
         (account.role === 'admin' || account.role === 'user'),
     )
@@ -45,7 +50,12 @@ export function parseAccountsJson(json: string): AppAccount[] {
   if (!parsed.some((account) => account.role === 'admin')) {
     throw new Error('Debe existir al menos un usuario administrador.')
   }
-  return parsed
+  return parsed.map((account) => ({
+    ...account,
+    employeeName: typeof account.employeeName === 'string'
+      ? account.employeeName.trim()
+      : account.username,
+  }))
 }
 
 export function loadAccounts(
@@ -68,12 +78,17 @@ export function authenticate(accounts: AppAccount[], pin: string): AppAccount | 
 export function addAccount(
   accounts: AppAccount[],
   username: string,
+  employeeName: string,
   pin: string,
   role: UserRole,
 ): AppAccount[] {
   const normalizedUsername = username.trim()
+  const normalizedEmployeeName = employeeName.trim()
   if (!/^[a-zA-Z0-9]{3,24}$/.test(normalizedUsername)) {
     throw new Error('El usuario debe tener entre 3 y 24 caracteres alfanuméricos.')
+  }
+  if (!normalizedEmployeeName || normalizedEmployeeName.length > 80) {
+    throw new Error('El nombre del empleado debe tener entre 1 y 80 caracteres.')
   }
   if (!isValidPin(pin)) throw new Error('El PIN debe contener exactamente 6 números.')
   if (role !== 'admin' && role !== 'user') throw new Error('El rol seleccionado no es válido.')
@@ -83,7 +98,22 @@ export function addAccount(
   if (accounts.some((account) => account.pin === pin)) {
     throw new Error('Ese código ya está asignado a otra cuenta.')
   }
-  return [...accounts, { username: normalizedUsername, pin, role }]
+  return [...accounts, { username: normalizedUsername, employeeName: normalizedEmployeeName, pin, role }]
+}
+
+export function updateAccountEmployeeName(
+  accounts: AppAccount[],
+  username: string,
+  employeeName: string,
+): AppAccount[] {
+  const normalizedName = employeeName.trim()
+  if (!normalizedName || normalizedName.length > 80) {
+    throw new Error('El nombre del empleado debe tener entre 1 y 80 caracteres.')
+  }
+  if (!accounts.some((account) => account.username === username)) throw new Error('No se encontró el usuario.')
+  return accounts.map((account) =>
+    account.username === username ? { ...account, employeeName: normalizedName } : account,
+  )
 }
 
 export function updateAccountRole(accounts: AppAccount[], username: string, role: UserRole): AppAccount[] {

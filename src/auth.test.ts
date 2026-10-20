@@ -9,14 +9,15 @@ import {
   parseAccountsJson,
   removeAccount,
   saveAccounts,
+  updateAccountEmployeeName,
   updateAccountRole,
 } from './auth'
 
 describe('local demo accounts', () => {
   it('provides the requested initial admin and user accounts', () => {
     expect(INITIAL_ACCOUNTS).toEqual([
-      { username: 'admin', pin: '123456', role: 'admin' },
-      { username: 'user', pin: '000000', role: 'user' },
+      { username: 'admin', employeeName: 'Administrador', pin: '123456', role: 'admin' },
+      { username: 'user', employeeName: 'Usuario', pin: '000000', role: 'user' },
     ])
   })
 
@@ -47,7 +48,7 @@ describe('local demo accounts', () => {
       setItem: (key: string, value: string) => values.set(key, value),
     }
     const configuredAccounts = updateAccountRole(
-      addAccount(INITIAL_ACCOUNTS, 'manager', '246810', 'user'),
+      addAccount(INITIAL_ACCOUNTS, 'manager', 'María López', '246810', 'user'),
       'manager',
       'admin',
     )
@@ -59,27 +60,45 @@ describe('local demo accounts', () => {
   })
 
   it('authenticates with the six-digit code only and rejects wrong PINs', () => {
-    expect(authenticate(INITIAL_ACCOUNTS, '123456')?.role).toBe('admin')
-    expect(authenticate(INITIAL_ACCOUNTS, '000000')?.role).toBe('user')
+    expect(authenticate(INITIAL_ACCOUNTS, '123456')).toEqual({
+      username: 'admin',
+      employeeName: 'Administrador',
+      pin: '123456',
+      role: 'admin',
+    })
+    expect(authenticate(INITIAL_ACCOUNTS, '000000')).toEqual({
+      username: 'user',
+      employeeName: 'Usuario',
+      pin: '000000',
+      role: 'user',
+    })
     expect(authenticate(INITIAL_ACCOUNTS, '654321')).toBeNull()
-    expect(authenticate(INITIAL_ACCOUNTS, 'bad')).toBeNull()
+    expect(authenticate(INITIAL_ACCOUNTS, '12345')).toBeNull()
+    expect(authenticate(INITIAL_ACCOUNTS, '12a456')).toBeNull()
   })
 
   it('adds unique accounts with a valid six-digit PIN and selected role', () => {
-    const accounts = addAccount(INITIAL_ACCOUNTS, 'supervisor', '456789', 'admin')
+    const accounts = addAccount(INITIAL_ACCOUNTS, 'supervisor', 'Ana García', '456789', 'admin')
 
-    expect(accounts[2]).toEqual({ username: 'supervisor', pin: '456789', role: 'admin' })
-    expect(() => addAccount(accounts, 'ADMIN', '123456', 'user')).toThrow('ya existe')
-    expect(() => addAccount(accounts, 'another', '12345', 'user')).toThrow('6 números')
-    expect(() => addAccount(accounts, 'otheruser', '456789', 'user')).toThrow('ya está asignado')
-    expect(() => addAccount(accounts, 'bad name', '123456', 'user')).toThrow('alfanuméricos')
+    expect(accounts[2]).toEqual({
+      username: 'supervisor',
+      employeeName: 'Ana García',
+      pin: '456789',
+      role: 'admin',
+    })
+    expect(() => addAccount(accounts, 'ADMIN', 'Otro nombre', '123456', 'user')).toThrow('ya existe')
+    expect(() => addAccount(accounts, 'another', 'Nombre', '12345', 'user')).toThrow('6 números')
+    expect(() => addAccount(accounts, 'otheruser', 'Nombre', '456789', 'user')).toThrow('ya está asignado')
+    expect(() => addAccount(accounts, 'bad name', 'Nombre', '123456', 'user')).toThrow('alfanuméricos')
+    expect(() => addAccount(accounts, 'validuser', ' ', '654321', 'user')).toThrow('nombre del empleado')
+    expect(updateAccountEmployeeName(accounts, 'supervisor', 'Ana Pérez')[2].employeeName).toBe('Ana Pérez')
   })
 
   it('allows admins to choose other admins but keeps at least one admin', () => {
     const promoted = updateAccountRole(INITIAL_ACCOUNTS, 'user', 'admin')
     expect(promoted.find((account) => account.username === 'user')?.role).toBe('admin')
 
-    const onlyAdmin = [{ username: 'admin', pin: '123456', role: 'admin' as const }]
+    const onlyAdmin = [{ username: 'admin', employeeName: 'Admin', pin: '123456', role: 'admin' as const }]
     expect(() => updateAccountRole(onlyAdmin, 'admin', 'user')).toThrow('al menos un usuario administrador')
     expect(() => removeAccount(onlyAdmin, 'admin')).toThrow('último usuario administrador')
   })
@@ -98,5 +117,15 @@ describe('local demo accounts', () => {
         { username: 'member', pin: '123456', role: 'user' },
       ])),
     ).toThrow('código de acceso distinto')
+  })
+
+  it('fills the employee name with the account id when upgrading a legacy account file', () => {
+    const legacy = parseAccountsJson(JSON.stringify([
+      { username: '1042', pin: '123456', role: 'admin' },
+    ]))
+
+    expect(legacy).toEqual([
+      { username: '1042', employeeName: '1042', pin: '123456', role: 'admin' },
+    ])
   })
 })

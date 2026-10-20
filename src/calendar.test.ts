@@ -13,6 +13,8 @@ import {
   removeTask,
   saveTasks,
   tasksForDate,
+  taskOccurrenceDates,
+  taskOccursOnDate,
   updateChecklistStep,
   updateTaskCompletion,
   updateTaskDetails,
@@ -58,6 +60,44 @@ describe('calendar dates', () => {
 })
 
 describe('calendar tasks', () => {
+  it('repeats tasks daily from their start date and keeps eventual tasks one-off', () => {
+    const daily = { date: '2026-10-20', period: 'daily' as const }
+    const eventual = { date: '2026-10-20', period: 'eventual' as const }
+
+    expect(taskOccurrenceDates(daily, '2026-10-18', '2026-10-22')).toEqual([
+      '2026-10-20',
+      '2026-10-21',
+      '2026-10-22',
+    ])
+    expect(taskOccursOnDate(eventual, '2026-10-21')).toBe(false)
+    expect(taskOccurrenceDates(eventual, '2026-10-18', '2026-10-22')).toEqual(['2026-10-20'])
+  })
+
+  it('repeats weekly on the anchor weekday and monthly on the anchor day, clamped to month end', () => {
+    const weekly = { date: '2026-10-20', period: 'weekly' as const }
+    const monthly = { date: '2026-01-31', period: 'monthly' as const }
+
+    expect(taskOccurrenceDates(weekly, '2026-10-19', '2026-11-03')).toEqual([
+      '2026-10-20',
+      '2026-10-27',
+      '2026-11-03',
+    ])
+    expect(taskOccurrenceDates(monthly, '2026-01-01', '2026-04-30')).toEqual([
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+      '2026-04-30',
+    ])
+  })
+
+  it('rejects invalid occurrence date ranges', () => {
+    expect(() => taskOccurrenceDates(
+      { date: '2026-10-20', period: 'daily' },
+      '2026-10-22',
+      '2026-10-21',
+    )).toThrow('intervalo de fechas')
+  })
+
   it('creates seeded tasks on actual dates relative to today', () => {
     const tasks = createInitialTasks(new Date(2026, 9, 30))
 
@@ -98,6 +138,7 @@ describe('calendar tasks', () => {
       { period: 'daily', total: 2, completed: 1, percentage: 50 },
       { period: 'weekly', total: 1, completed: 1, percentage: 100 },
       { period: 'monthly', total: 0, completed: 0, percentage: 0 },
+      { period: 'eventual', total: 0, completed: 0, percentage: 0 },
     ])
   })
 
@@ -112,10 +153,15 @@ describe('calendar tasks', () => {
   it('completes a task only after every guide step has been checked', () => {
     const tasks: CalendarTask[] = [{ ...sampleTask, id: 1, status: 'En curso' }]
     const oneStep = updateChecklistStep(tasks, 1, 1, true)
-    const allSteps = updateChecklistStep(oneStep, 1, 2, true, 'supervisor')
+    const allSteps = updateChecklistStep(oneStep, 1, 2, true, '1042', 'María López')
 
     expect(oneStep[0]).toMatchObject({ completed: false, status: 'En curso' })
-    expect(allSteps[0]).toMatchObject({ completed: true, status: 'Listo', completedBy: 'supervisor' })
+    expect(allSteps[0]).toMatchObject({
+      completed: true,
+      status: 'Listo',
+      completedBy: '1042',
+      completedByName: 'María López',
+    })
     expect(() => updateChecklistStep(allSteps, 1, 1, false)).toThrow('ya está finalizada')
     expect(() => updateTaskCompletion(tasks, 1, true)).toThrow('Completa todos los pasos')
     expect(() => updateTaskStatus(tasks, 1)).toThrow('Completa todos los pasos')
@@ -140,11 +186,16 @@ describe('calendar tasks', () => {
       { ...sampleTask, id: 1, checklist: completeChecklist },
       { ...sampleTask, id: 2, status: 'En curso' as const, checklist: completeChecklist },
     ]
-    const completed = updateTaskCompletion(tasks, 1, true, 'staff01')
+    const completed = updateTaskCompletion(tasks, 1, true, 'staff01', 'Ana García')
     const reopened = updateTaskCompletion(completed, 1, false)
     const inProgress = updateTaskCompletion(tasks, 2, true, 'staff02')
 
-    expect(completed[0]).toMatchObject({ completed: true, status: 'Listo', completedBy: 'staff01' })
+    expect(completed[0]).toMatchObject({
+      completed: true,
+      status: 'Listo',
+      completedBy: 'staff01',
+      completedByName: 'Ana García',
+    })
     expect(reopened[0]).toMatchObject({ completed: false, status: 'Pendiente' })
     expect(reopened[0].completedBy).toBeUndefined()
     expect(inProgress[1]).toMatchObject({ completed: true, status: 'Listo', completedBy: 'staff02' })

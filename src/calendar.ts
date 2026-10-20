@@ -1,4 +1,4 @@
-export type Period = 'daily' | 'weekly' | 'monthly'
+export type Period = 'daily' | 'weekly' | 'monthly' | 'eventual'
 export type TaskStatus = 'Pendiente' | 'En curso' | 'Listo'
 
 export type ChecklistStep = {
@@ -16,6 +16,7 @@ export type CalendarTask = {
   status: TaskStatus
   completed: boolean
   completedBy?: string
+  completedByName?: string
   description: string
   checklist: ChecklistStep[]
 }
@@ -67,6 +68,40 @@ export function tasksForDate(tasks: CalendarTask[], date: string): CalendarTask[
     .sort((first, second) => first.time.localeCompare(second.time))
 }
 
+export function taskOccursOnDate(task: Pick<CalendarTask, 'date' | 'period'>, date: string): boolean {
+  const anchorDate = parseDateKey(task.date)
+  const occurrenceDate = parseDateKey(date)
+  if (occurrenceDate < anchorDate) return false
+  if (task.period === 'eventual') return date === task.date
+  if (task.period === 'daily') return true
+  if (task.period === 'weekly') return occurrenceDate.getDay() === anchorDate.getDay()
+  const lastDayOfOccurrenceMonth = new Date(
+    occurrenceDate.getFullYear(),
+    occurrenceDate.getMonth() + 1,
+    0,
+  ).getDate()
+  return occurrenceDate.getDate() === Math.min(anchorDate.getDate(), lastDayOfOccurrenceMonth)
+}
+
+export function taskOccurrenceDates(
+  task: Pick<CalendarTask, 'date' | 'period'>,
+  from: string,
+  to: string,
+): string[] {
+  const firstDate = parseDateKey(from)
+  const lastDate = parseDateKey(to)
+  if (firstDate > lastDate) throw new Error('El intervalo de fechas no es válido.')
+  const anchorDate = parseDateKey(task.date)
+  const cursor = new Date(Math.max(firstDate.getTime(), anchorDate.getTime()))
+  const dates: string[] = []
+  while (cursor <= lastDate) {
+    const currentDate = dateKey(cursor)
+    if (taskOccursOnDate(task, currentDate)) dates.push(currentDate)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return dates
+}
+
 export function overdueTasks(tasks: CalendarTask[], now: Date): CalendarTask[] {
   const nowTime = now.getTime()
   return tasks
@@ -94,6 +129,7 @@ export function updateChecklistStep(
   stepId: number,
   completed: boolean,
   completedBy?: string,
+  completedByName?: string,
 ): CalendarTask[] {
   const task = tasks.find((item) => item.id === taskId)
   if (!task) throw new Error('No se encontró la tarea asociada a esta lista.')
@@ -114,6 +150,7 @@ export function updateChecklistStep(
       checklist,
       completed: taskCompleted,
       completedBy: taskCompleted ? completedBy : undefined,
+      completedByName: taskCompleted ? completedByName : undefined,
       status: taskCompleted ? 'Listo' : completedSteps > 0 ? 'En curso' : 'Pendiente',
     }
   })
@@ -129,7 +166,7 @@ export function completionByPeriod(tasks: CalendarTask[]): Array<{
   completed: number
   percentage: number
 }> {
-  const periods: Period[] = ['daily', 'weekly', 'monthly']
+  const periods: Period[] = ['daily', 'weekly', 'monthly', 'eventual']
   return periods.map((period) => {
     const groupedTasks = tasks.filter((task) => task.period === period)
     const completed = groupedTasks.filter((task) => task.completed).length
@@ -190,6 +227,7 @@ export function updateTaskCompletion(
   id: number,
   completed: boolean,
   completedBy?: string,
+  completedByName?: string,
 ): CalendarTask[] {
   const task = tasks.find((item) => item.id === id)
   if (completed && task && hasIncompleteChecklist(task)) {
@@ -202,6 +240,7 @@ export function updateTaskCompletion(
           ...task,
           completed,
           completedBy: completed ? completedBy : undefined,
+          completedByName: completed ? completedByName : undefined,
           status: completed ? 'Listo' : 'Pendiente',
           checklist: completed
             ? task.checklist
@@ -319,13 +358,15 @@ function isCalendarTask(value: unknown): value is CalendarTask {
 
   return (
     Number.isInteger(task.id) &&
-    (task.period === 'daily' || task.period === 'weekly' || task.period === 'monthly') &&
+    (task.period === 'daily' || task.period === 'weekly' ||
+      task.period === 'monthly' || task.period === 'eventual') &&
     typeof task.title === 'string' &&
     typeof task.time === 'string' &&
     (task.status === 'Pendiente' || task.status === 'En curso' || task.status === 'Listo') &&
     (task.completed === undefined || typeof task.completed === 'boolean') &&
     typeof task.description === 'string' &&
     (task.completedBy === undefined || typeof task.completedBy === 'string') &&
+    (task.completedByName === undefined || typeof task.completedByName === 'string') &&
     (task.checklist === undefined ||
       (Array.isArray(task.checklist) &&
         task.checklist.every(
