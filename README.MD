@@ -9,6 +9,10 @@ La vista Calendario, disponible solo para administradores, permite navegar entre
 
 Desde la raíz del repositorio, instala dependencias con `npm install`, inicia la aplicación y su API con `npm run dev` y ejecuta las pruebas con `npm test`. `npm run build` comprueba los tipos y genera la versión de producción.
 
+## Estructura del código
+
+La interfaz separa la plantilla HTML inicial (`src/app-shell.ts`), el arranque y la coordinación de la aplicación (`src/main.ts`) y la representación de Biblioteca y Stock (`src/catalog-views.ts`). El escape de texto HTML compartido está en `src/html.ts`. La lógica del dominio se mantiene en módulos independientes (`auth`, `calendar`, `library` y `stock`), mientras que `src/api.ts` centraliza las solicitudes HTTP. El servidor organiza la API y el acceso a SQLite en `server/app.ts` y `server/database.ts`. Las pruebas se encuentran junto a los módulos que verifican.
+
 ## Base de datos compartida
 
 La fuente de datos de la aplicación es SQLite en el servidor Node.js, no el almacenamiento del navegador. La base se crea automáticamente en `data/checkapp.sqlite` e incluye usuarios y roles, tareas y checklists, productos de stock e información de la Biblioteca. La aplicación carga esas secciones desde la API y guarda los cambios allí; al volver a primer plano y periódicamente mientras está abierta, actualiza los datos compartidos. Las categorías y unidades son valores controlados por la aplicación; los registros editables se guardan en SQLite.
