@@ -1,3 +1,4 @@
+
 import { LIBRARY_CATEGORIES } from './library'
 import {
   STOCK_CATEGORIES,
@@ -59,12 +60,12 @@ export function renderAppShell(): string {
       </header>
 
       <main class="page">
-        <p class="app-storage-note">CheckApp carga y guarda tus tareas y permisos en la base de datos compartida del establecimiento.</p>
+        
         <section id="daily-checklist-section" class="daily-checklist-section" aria-labelledby="daily-checklist-title">
           <div class="section-header">
             <div>
-              <p class="eyebrow">Checklist de hoy</p>
-              <h2 id="daily-checklist-title">Tareas del día</h2>
+              
+              <h2 id="daily-checklist-title">Tareas del día</h2><span class="eyebrow"></span>
             </div>
             <div class="daily-header-actions">
               <button class="calendar-today-btn" type="button" data-enable-notifications>Activar avisos</button>
@@ -384,3 +385,4 @@ export function renderAppShell(): string {
     </div>
   `
 }
+

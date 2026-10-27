@@ -15,6 +15,7 @@ export type LibraryArticle = {
   summary: string
   keywords: string[]
   steps: string[]
+  image?: string
 }
 
 export const LIBRARY_ARTICLES: LibraryArticle[] = [
@@ -31,6 +32,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Separa los utensilios limpios de los usados y deja libre el acceso para reponer con rapidez.',
       'Confirma con el responsable las reservas, el menú, los alérgenos y las necesidades especiales del turno.',
     ],
+    image: '/images/preparar-estacion-sala.jpg',
   },
   {
     id: 'secuencia-servicio-mesa',
@@ -45,6 +47,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Sirve y retira siguiendo el protocolo del establecimiento, cuidando la seguridad y evitando interrumpir la conversación.',
       'Comprueba discretamente que todo está correcto y ofrece ayuda antes de cerrar la atención.',
     ],
+    image: '/images/secuencia-servicio-mesa.jpg',
   },
   {
     id: 'montaje-mesa-desayuno',
@@ -59,6 +62,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Alinea taza, vaso y elementos compartidos sin recargar el espacio individual.',
       'Revisa la simetría, la limpieza de la cristalería y que cada puesto tenga espacio suficiente.',
     ],
+    image: '/images/montaje-mesa-desayuno.jpg',
   },
   {
     id: 'orden-presentacion-buffet',
@@ -88,6 +92,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Controla los registros de tiempo y temperatura definidos por el responsable de seguridad alimentaria.',
       'Comunica de inmediato cualquier falta, incidencia o posible contacto entre alimentos.',
     ],
+    image: '/images/reposicion-buffet.jpg',
   },
   {
     id: 'servicio-bebidas',
@@ -102,6 +107,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Manipula vasos por la base o el tallo y evita tocar los bordes en contacto con la boca.',
       'Comprueba la presentación y entrega la bebida a la persona correcta, atendiendo cualquier alergia comunicada.',
     ],
+    image: '/images/servicio-bebidas.jpg',
   },
   {
     id: 'receta-mojito',
@@ -116,6 +122,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Remueve con cuidado y termina con una ramita de hierbabuena y una rodaja de lima.',
       'Sirve inmediatamente y ofrece una versión sin alcohol si el cliente la solicita.',
     ],
+    image: '/images/receta-mojito.jpg',
   },
   {
     id: 'receta-gin-tonic',
@@ -130,6 +137,7 @@ export const LIBRARY_ARTICLES: LibraryArticle[] = [
       'Incorpora la guarnición indicada y mezcla una sola vez, con suavidad.',
       'Sirve de inmediato y ajusta medidas o guarnición a la receta estándar del establecimiento.',
     ],
+    image: '/images/receta-gin-tonic.jpg',
   },
 ]
 
