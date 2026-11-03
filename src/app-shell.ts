@@ -7,6 +7,13 @@ import {
 } from './stock'
 
 export function renderAppShell(): string {
+  const timeBandLegend = `
+    <div class="time-band-legend" aria-label="Colores según la hora de la tarea">
+      <span><i class="time-band-dot time-morning" aria-hidden="true"></i>Mañana · 06:00–12:00</span>
+      <span><i class="time-band-dot time-afternoon" aria-hidden="true"></i>Tarde · 12:00–18:00</span>
+      <span><i class="time-band-dot time-night" aria-hidden="true"></i>Noche · 18:00–24:00</span>
+    </div>
+  `
   return `
     <section id="login-screen" class="login-screen" aria-labelledby="login-title">
       <form id="login-form" class="login-card">
@@ -81,6 +88,7 @@ export function renderAppShell(): string {
               <span id="daily-progress-fill"></span>
             </div>
           </div>
+          ${timeBandLegend}
           <div id="deviation-panel" class="deviation-panel" hidden></div>
           <div id="daily-task-list" class="daily-task-list"></div>
         </section>
@@ -117,7 +125,10 @@ export function renderAppShell(): string {
               <h2 id="stock-title">Control de stock</h2>
               <p class="section-copy">Busca productos y consulta sus existencias y ubicación.</p>
             </div>
-            <button class="primary-action" type="button" data-add-stock>Nuevo producto</button>
+            <div class="stock-section-actions">
+              <button class="calendar-today-btn" type="button" data-stock-count>Realizar control de stock</button>
+              <button class="primary-action" type="button" data-add-stock>Nuevo producto</button>
+            </div>
           </div>
           <p id="stock-error" class="calendar-error" role="alert" hidden></p>
           <p id="stock-initial-note" class="stock-initial-note" hidden></p>
@@ -167,59 +178,104 @@ export function renderAppShell(): string {
           <div class="section-header">
             <div>
               <p class="eyebrow">Panel de control</p>
-              <h2 id="task-admin-title">Administración de tareas</h2>
-              <p class="section-copy">Crea, revisa y organiza las tareas guardadas en este dispositivo.</p>
-            </div>
-            <div class="admin-actions">
-            
-              <button class="calendar-today-btn" type="button" hidden data-export-tasks>Exportar archivo</button>
-              <button class="calendar-today-btn" type="button" hidden data-import-tasks>Importar archivo</button>
-              <input id="task-import-file" type="file" accept="application/json,.json" hidden />
-              <button class="primary-action" type="button" data-add-task data-admin-only>Nueva tarea</button>
+              <h2 id="task-admin-title">Panel de administración</h2>
+              <p class="section-copy">Gestiona las tareas del equipo y las cuentas de acceso desde un solo lugar.</p>
             </div>
           </div>
-          
-          <div class="admin-filters" aria-label="Filtros de tareas">
-            <label>
-              Buscar
-              <input id="admin-search" type="search" placeholder="Título o descripción" />
-            </label>
-            <label>
-              Periodo
-              <select id="admin-period">
-                <option value="">Todos</option>
-                <option value="daily">Diarias</option>
-                <option value="weekly">Semanales</option>
-                <option value="monthly">Mensuales</option>
-                <option value="eventual">Eventuales</option>
-              </select>
-            </label>
-            <label>
-              Estado
-              <select id="admin-status">
-                <option value="">Todos</option>
-                <option value="pending">Pendientes</option>
-                <option value="in-progress">En curso</option>
-                <option value="completed">Completadas</option>
-              </select>
-            </label>
+
+          <div class="admin-tabs" role="tablist" aria-label="Secciones de administración">
+            <button class="admin-tab is-active" id="admin-tab-tasks" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-tasks" tabindex="0" data-admin-tab="tasks">Administración de tareas</button>
+            <button class="admin-tab" id="admin-tab-history" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-history" tabindex="-1" data-admin-tab="history">Historial</button>
+            <button class="admin-tab" id="admin-tab-users" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-users" tabindex="-1" data-admin-tab="users">Accesos y empleados</button>
           </div>
-          <div id="admin-task-list" class="admin-task-list"></div>
-          <section class="user-admin-section" aria-labelledby="user-admin-title">
-            <div class="section-header">
+
+          <section class="admin-management-card task-management-card" id="admin-panel-tasks" role="tabpanel" aria-labelledby="admin-tab-tasks" tabindex="0">
+            <div class="admin-management-heading">
+              <div>
+                <p class="eyebrow">Planificación y seguimiento</p>
+                <h3 id="task-management-title">Administración de tareas</h3>
+                <p class="section-copy">Aquí puedes consultar, crear, editar y eliminar tareas del equipo.</p>
+              </div>
+              <div class="admin-actions">
+                <button class="calendar-today-btn" type="button" hidden data-export-tasks>Exportar archivo</button>
+                <button class="calendar-today-btn" type="button" hidden data-import-tasks>Importar archivo</button>
+                <input id="task-import-file" type="file" accept="application/json,.json" hidden />
+                <button class="primary-action" type="button" data-add-task data-admin-only>Nueva tarea</button>
+              </div>
+            </div>
+
+            <div class="admin-filters" aria-label="Filtros de tareas">
+              <label>
+                Buscar
+                <input id="admin-search" type="search" placeholder="Título o descripción" />
+              </label>
+              <label>
+                Periodo
+                <select id="admin-period">
+                  <option value="">Todos</option>
+                  <option value="daily">Diarias</option>
+                  <option value="weekly">Semanales</option>
+                  <option value="monthly">Mensuales</option>
+                  <option value="eventual">Eventuales</option>
+                </select>
+              </label>
+            </div>
+            <div id="admin-task-list" class="admin-task-list"></div>
+          </section>
+
+          <section class="admin-management-card admin-history-section" id="admin-panel-history" role="tabpanel" aria-labelledby="admin-tab-history" tabindex="0" hidden>
+            <div class="admin-management-heading">
+              <div>
+                <p class="eyebrow">Ejecuciones por fecha</p>
+                <h3>Historial de tareas</h3>
+                <p class="section-copy">El historial muestra las ejecuciones de los últimos siete días.</p>
+              </div>
+            </div>
+            <div class="admin-filters" aria-label="Filtros del historial">
+              <label>
+                Buscar
+                <input id="history-search" type="search" placeholder="Título o descripción" />
+              </label>
+              <label>
+                Periodo
+                <select id="history-period">
+                  <option value="">Todos</option>
+                  <option value="daily">Diarias</option>
+                  <option value="weekly">Semanales</option>
+                  <option value="monthly">Mensuales</option>
+                  <option value="eventual">Eventuales</option>
+                </select>
+              </label>
+              <label>
+                Estado
+                <select id="admin-status">
+                  <option value="">Todos</option>
+                  <option value="pending">Tarea no realizada</option>
+                  <option value="completed">Completadas</option>
+                </select>
+              </label>
+            </div>
+            <div id="admin-history-list" class="admin-task-list"></div>
+          </section>
+
+          <section class="admin-management-card user-admin-section" id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users" tabindex="0" hidden>
+            <div class="admin-management-heading">
               <div>
                 <p class="eyebrow">Accesos y permisos</p>
-                <h3 id="user-admin-title">Cuentas y empleados</h3>
+                <h3 id="user-admin-title">Accesos y empleados</h3>
+                <p class="section-copy">Aquí puedes consultar, crear, editar el nombre y el rol, y eliminar usuarios.</p>
               </div>
-              <p class="section-copy">Asigna un nombre a cada número de empleado y administra sus permisos.</p>
             </div>
-            <form id="user-form" class="user-create-form">
-              <label>Número de empleado<input name="username" type="text" minlength="3" maxlength="24" pattern="[a-zA-Z0-9]{3,24}" autocomplete="off" required /></label>
-              <label>Nombre del empleado<input name="employeeName" type="text" maxlength="80" autocomplete="name" required /></label>
-              <label>PIN (6 números)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" required /></label>
-              <label>Rol<select name="role"><option value="user">Usuario</option><option value="admin">Administrador</option></select></label>
-              <button class="primary-action" type="submit">Añadir usuario</button>
-            </form>
+            <div class="user-create-panel">
+              <h4>Crear usuario</h4>
+              <form id="user-form" class="user-create-form">
+                <label>Número de empleado<input name="username" type="text" minlength="3" maxlength="24" pattern="[a-zA-Z0-9]{3,24}" autocomplete="off" required /></label>
+                <label>Nombre del empleado<input name="employeeName" type="text" maxlength="80" autocomplete="name" required /></label>
+                <label>PIN (6 números)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" required /></label>
+                <label>Rol<select name="role"><option value="user">Usuario</option><option value="admin">Administrador</option></select></label>
+                <button class="primary-action" type="submit">Crear usuario</button>
+              </form>
+            </div>
             <div id="user-list" class="user-list"></div>
           </section>
         </section>
@@ -256,6 +312,7 @@ export function renderAppShell(): string {
               </div>
               <span id="selected-task-count" class="selected-task-count"></span>
             </div>
+            ${timeBandLegend}
             <div id="completion-groups" class="completion-groups" aria-label="Porcentaje de tareas completadas por grupo"></div>
             <div id="selected-task-list" class="task-list"></div>
           </section>
@@ -380,10 +437,26 @@ export function renderAppShell(): string {
           </form>
         </dialog>
 
-        <div id="task-notification" class="task-notification" role="status" aria-live="polite" hidden></div>
+        <dialog id="stock-count-dialog" class="task-dialog stock-count-dialog">
+          <form id="stock-count-form" class="task-form">
+            <div class="dialog-heading">
+              <div>
+                <p class="eyebrow">Inventario físico</p>
+                <h2>Realizar control de stock</h2>
+                <p class="section-copy">Actualiza las existencias de todos los productos. Los cambios se guardarán juntos.</p>
+              </div>
+              <button class="dialog-close" type="button" data-close-stock-count aria-label="Cerrar">×</button>
+            </div>
+            <div id="stock-count-list" class="stock-count-list"></div>
+            <div class="dialog-actions">
+              <button class="calendar-today-btn" type="button" data-close-stock-count>Cancelar</button>
+              <button class="primary-action" type="submit">Guardar control</button>
+            </div>
+          </form>
+        </dialog>
+
 
       </main>
     </div>
   `
 }
-

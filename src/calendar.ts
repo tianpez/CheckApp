@@ -1,5 +1,6 @@
 export type Period = 'daily' | 'weekly' | 'monthly' | 'eventual'
 export type TaskStatus = 'Pendiente' | 'En curso' | 'Listo'
+export type TaskTimeBand = 'morning' | 'afternoon' | 'night'
 
 export type ChecklistStep = {
   id: number
@@ -28,6 +29,15 @@ export type CalendarDay = {
 }
 
 export const TASKS_STORAGE_KEY = 'andy-app-calendar-tasks'
+
+export function taskTimeBand(time: string): TaskTimeBand | undefined {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return undefined
+  const hour = Number(time.slice(0, 2))
+  if (hour >= 6 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 18) return 'afternoon'
+  if (hour >= 18) return 'night'
+  return undefined
+}
 
 export function dateKey(date: Date): string {
   const year = date.getFullYear()

@@ -311,6 +311,139 @@ describe('SQLite-backed application API', () => {
       .expect(400)
   })
 
+  it('updates the active task occurrence when an admin edits its definition', async () => {
+    const today = dateKey(new Date())
+    const created = await admin.post('/api/tasks')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        task: {
+          date: today,
+          period: 'daily',
+          title: 'Tarea antes de editar',
+          time: '08:00',
+          status: 'Pendiente',
+          completed: false,
+          description: 'Descripción original',
+          checklist: createChecklistSteps('Paso conservado\nPaso por cambiar'),
+        },
+      })
+      .expect(201)
+    const task = created.body.tasks.find((item: { title: string }) => item.title === 'Tarea antes de editar')
+
+    await user.patch(`/api/tasks/${task.id}/occurrences/${today}/checklist/1`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ completed: true })
+      .expect(200)
+
+    await admin.put(`/api/tasks/${task.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        task: {
+          date: today,
+          period: 'daily',
+          title: 'Tarea editada',
+          time: '10:30',
+          status: 'Pendiente',
+          completed: false,
+          description: 'Descripción actualizada',
+          checklist: createChecklistSteps('Paso conservado\nPaso actualizado'),
+        },
+      })
+      .expect(200)
+
+    expect(database.getTaskOccurrences(today, today).find((item) => item.id === task.id))
+      .toMatchObject({
+        title: 'Tarea editada',
+        time: '10:30',
+        description: 'Descripción actualizada',
+        status: 'En curso',
+        completed: false,
+        checklist: [
+          { id: 1, text: 'Paso conservado', completed: true },
+          { id: 2, text: 'Paso actualizado', completed: false },
+        ],
+      })
+
+    await admin.put(`/api/tasks/${task.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        task: {
+          date: today,
+          period: 'daily',
+          title: 'Tarea editada',
+          time: '10:30',
+          status: 'En curso',
+          completed: false,
+          description: 'Descripción actualizada',
+          checklist: createChecklistSteps('Paso conservado\nPaso actualizado'),
+        },
+      })
+      .expect(200)
+    expect(database.getTaskOccurrences(today, today).find((item) => item.id === task.id))
+      .toMatchObject({ status: 'En curso', checklist: [{ completed: true }, { completed: false }] })
+  })
+
+  it('saves complete physical stock counts atomically and only for admins', async () => {
+    const stockBefore = database.getStock()
+    const counts = stockBefore.map((product, index) => ({
+      id: product.id,
+      quantity: index / 4,
+    }))
+
+    await user.put('/api/stock/count')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ counts })
+      .expect(403)
+    await admin.put('/api/stock/count')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ counts: counts.slice(1) })
+      .expect(400)
+    await admin.put('/api/stock/count')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ counts: [{ ...counts[0], quantity: -1 }, ...counts.slice(1)] })
+      .expect(400)
+    await admin.put('/api/stock/count')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ counts: [...counts, counts[0]] })
+      .expect(400)
+    expect(database.getStock()).toEqual(stockBefore)
+
+    database.raw.exec(`
+      CREATE TRIGGER fail_stock_count_update
+      BEFORE UPDATE OF quantity ON stock_products
+      WHEN NEW.id = ${counts[1].id}
+      BEGIN
+        SELECT RAISE(ABORT, 'Stock count update failed');
+      END;
+    `)
+    try {
+      expect(() => database.updateStockCounts(counts)).toThrow('Stock count update failed')
+      expect(database.getStock()).toEqual(stockBefore)
+    } finally {
+      database.raw.exec('DROP TRIGGER fail_stock_count_update')
+    }
+
+    const saved = await admin.put('/api/stock/count')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ counts })
+      .expect(200)
+    expect(saved.body.stock).toHaveLength(stockBefore.length)
+    for (const [index, product] of stockBefore.entries()) {
+      const savedProduct = saved.body.stock.find((item: { id: number }) => item.id === product.id)
+      expect(savedProduct).toMatchObject({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        quantity: counts[index].quantity,
+        unit: product.unit,
+        minimumQuantity: product.minimumQuantity,
+        location: product.location,
+        defaultImage: product.defaultImage,
+        counted: true,
+      })
+    }
+  })
+
   it('retains application data and sessions after reopening a file database', () => {
     const directory = mkdtempSync(join(tmpdir(), 'checkapp-sqlite-'))
     const path = join(directory, 'checkapp.sqlite')

@@ -357,6 +357,16 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
     response.json({ stock: database.getStock() })
   })
 
+  app.put('/api/stock/count', authenticate, (request, response, next) => {
+    try {
+      requireRequestToken(request)
+      requireAdmin(accountFromResponse(response))
+      response.json({ stock: database.updateStockCounts(request.body?.counts) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
   app.put('/api/stock', authenticate, (request, response, next) => {
     try {
       requireRequestToken(request)

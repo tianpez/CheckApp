@@ -1,4 +1,6 @@
 import './style.css'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
 import { renderAppShell } from './app-shell'
 import { renderLibraryView, renderStockView } from './catalog-views'
 import { escapeHtml } from './html'
@@ -17,6 +19,7 @@ import {
   parseTasksJson,
   parseDateKey,
   tasksForDate,
+  taskTimeBand,
   type CalendarTask,
   type Period,
 } from './calendar'
@@ -24,6 +27,7 @@ import {
   STOCK_CATEGORIES,
   STOCK_CATEGORY_IMAGE,
   STOCK_STORAGE_KEY,
+  STOCK_UNIT_LABELS,
   STOCK_UNITS,
   parseStockJson,
   type StockCategory,
@@ -33,6 +37,11 @@ import {
 import { apiRequest, type BootstrapData, type PublicAccount, type SessionUser } from './api'
 
 type TaskHistoryEntry = Omit<CalendarTask, 'checklist'>
+
+const timeBandClass = (time: string) => {
+  const band = taskTimeBand(time)
+  return band ? `time-${band}` : ''
+}
 
 const app = document.querySelector<HTMLDivElement>('#app')
 
@@ -81,12 +90,22 @@ if (app) {
   const stockInitialNote = document.querySelector<HTMLParagraphElement>('#stock-initial-note')
   const stockDialog = document.querySelector<HTMLDialogElement>('#stock-dialog')
   const stockForm = document.querySelector<HTMLFormElement>('#stock-form')
+  const stockCountButton = document.querySelector<HTMLButtonElement>('[data-stock-count]')
+  const stockCountDialog = document.querySelector<HTMLDialogElement>('#stock-count-dialog')
+  const stockCountForm = document.querySelector<HTMLFormElement>('#stock-count-form')
+  const stockCountList = document.querySelector<HTMLDivElement>('#stock-count-list')
   const stockDialogTitle = document.querySelector<HTMLHeadingElement>('#stock-dialog-title')
   const stockPhotoInput = document.querySelector<HTMLInputElement>('#stock-photo')
   const stockPhotoPreview = document.querySelector<HTMLDivElement>('#stock-photo-preview')
   const adminTaskList = document.querySelector<HTMLDivElement>('#admin-task-list')
+  const adminHistoryList = document.querySelector<HTMLDivElement>('#admin-history-list')
   const adminSearch = document.querySelector<HTMLInputElement>('#admin-search')
   const adminPeriod = document.querySelector<HTMLSelectElement>('#admin-period')
+  const adminPanelTasks = document.querySelector<HTMLElement>('#admin-panel-tasks')
+  const adminPanelHistory = document.querySelector<HTMLElement>('#admin-panel-history')
+  const adminPanelUsers = document.querySelector<HTMLElement>('#admin-panel-users')
+  const historySearch = document.querySelector<HTMLInputElement>('#history-search')
+  const historyPeriod = document.querySelector<HTMLSelectElement>('#history-period')
   const adminStatus = document.querySelector<HTMLSelectElement>('#admin-status')
   const importFile = document.querySelector<HTMLInputElement>('#task-import-file')
   const dailyTaskList = document.querySelector<HTMLDivElement>('#daily-task-list')
@@ -105,7 +124,6 @@ if (app) {
   const checklistDialog = document.querySelector<HTMLDialogElement>('#checklist-dialog')
   const checklistDialogContent = document.querySelector<HTMLDivElement>('#checklist-dialog-content')
   const deviationPanel = document.querySelector<HTMLDivElement>('#deviation-panel')
-  const taskNotification = document.querySelector<HTMLDivElement>('#task-notification')
   const now = new Date()
   let visibleMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   let selectedDate = dateKey(now)
@@ -114,7 +132,6 @@ if (app) {
   let taskHistory: TaskHistoryEntry[] = []
   let stock: StockProduct[] = []
   let libraryData: BootstrapData['library'] = []
-  let notificationTimeout: number | undefined
   let occurrenceLoadId = 0
   let editingTaskId: number | null = null
   let editingStockId: number | null = null
@@ -151,6 +168,19 @@ if (app) {
 
   const isAdmin = () => currentUser?.role === 'admin'
 
+  const setAdminTab = (tab: 'tasks' | 'history' | 'users') => {
+    if (!isAdmin() || !adminPanelTasks || !adminPanelHistory || !adminPanelUsers) return
+    document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]').forEach((button) => {
+      const selected = button.dataset.adminTab === tab
+      button.classList.toggle('is-active', selected)
+      button.setAttribute('aria-selected', String(selected))
+      button.tabIndex = selected ? 0 : -1
+    })
+    adminPanelTasks.hidden = tab !== 'tasks'
+    adminPanelHistory.hidden = tab !== 'history'
+    adminPanelUsers.hidden = tab !== 'users'
+  }
+
   const renderUserList = () => {
     if (!userList || !isAdmin()) return
     userList.innerHTML = accounts.map((account) => `
@@ -173,6 +203,7 @@ if (app) {
         </label>
         ${account.username === currentUser?.username
           ? '<span class="user-current-label">Conectado</span>'
+          //establecer un botón de eliminar con confirmación para el resto de los usuarios
           : `<button type="button" class="admin-delete" data-remove-user="${escapeHtml(account.username)}">Eliminar</button>`}
       </article>
     `).join('')
@@ -225,18 +256,39 @@ if (app) {
   }
 
   const showNotification = (message: string, kind: 'success' | 'warning' = 'success') => {
-    if (!taskNotification) return
-    taskNotification.textContent = message
-    taskNotification.className = `task-notification ${kind}`
-    taskNotification.hidden = false
-    window.clearTimeout(notificationTimeout)
-    notificationTimeout = window.setTimeout(() => {
-      taskNotification.hidden = true
-    }, 6000)
+    void Swal.fire({
+      toast: true,
+      position: 'bottom-end',
+      icon: kind === 'success' ? 'success' : 'warning',
+      text: message,
+      showConfirmButton: false,
+      showCloseButton: true,
+      timer: 5000,
+      timerProgressBar: true,
+    })
 
     if (kind === 'success' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       new Notification('CheckApp · Tarea completada', { body: message })
     }
+  }
+
+  const confirmAction = async (
+    message: string,
+    confirmButtonText = 'Confirmar',
+    title = '¿Estás seguro?',
+  ): Promise<boolean> => {
+    const result = await Swal.fire({
+      title,
+      text: message,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText,
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#9b4936',
+      reverseButtons: true,
+      focusCancel: true,
+    })
+    return result.isConfirmed
   }
 
   const renderLibrary = () => renderLibraryView(libraryData, {
@@ -246,17 +298,52 @@ if (app) {
     resultCount: libraryResultCount,
   })
 
-  const renderStock = () => renderStockView(stock, isAdmin(), {
-    list: stockList,
-    search: stockSearch,
-    category: stockCategory,
-    statusFilter: stockStatusFilter,
-    resultCount: stockResultCount,
-    uncountedCount: stockUncountedCount,
-    lowCount: stockLowCount,
-    outCount: stockOutCount,
-    initialNote: stockInitialNote,
-  })
+  const renderStock = () => {
+    renderStockView(stock, isAdmin(), {
+      list: stockList,
+      search: stockSearch,
+      category: stockCategory,
+      statusFilter: stockStatusFilter,
+      resultCount: stockResultCount,
+      uncountedCount: stockUncountedCount,
+      lowCount: stockLowCount,
+      outCount: stockOutCount,
+      initialNote: stockInitialNote,
+    })
+    if (stockCountButton) stockCountButton.disabled = stock.length === 0
+  }
+  const renderStockCountForm = () => {
+    if (!stockCountList) return
+    const quantity = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 3 })
+    const products = [...stock].sort((first, second) =>
+      first.category.localeCompare(second.category, 'es') || first.name.localeCompare(second.name, 'es'),
+    )
+    stockCountList.innerHTML = products.map((product) => `
+      <label class="stock-count-row">
+        <span class="stock-count-product">
+          <strong>${escapeHtml(product.name)}</strong>
+          <small>${escapeHtml(product.category)} · ${escapeHtml(product.location || 'Sin ubicación')} · Actual: ${quantity.format(product.quantity)} ${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</small>
+        </span>
+        <span class="stock-count-quantity">
+          <input data-stock-count="${product.id}" type="number" min="0" step="0.001" value="${product.quantity}" aria-label="Cantidad contada de ${escapeHtml(product.name)}" required />
+          <small>${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</small>
+        </span>
+      </label>
+    `).join('')
+  }
+  const openStockCountDialog = () => {
+    if (!isAdmin()) {
+      showNotification('Solo un administrador puede gestionar el stock.', 'warning')
+      return
+    }
+    if (!stockCountDialog || !stockCountForm) return
+    if (stock.length === 0) {
+      showNotification('Añade productos antes de realizar el control de stock.', 'warning')
+      return
+    }
+    renderStockCountForm()
+    stockCountDialog.showModal()
+  }
 
   const loadDatabaseData = async (showTasks = true) => {
     const data = await apiRequest<BootstrapData>('/bootstrap')
@@ -314,8 +401,10 @@ if (app) {
       sections.push('stock')
     }
 
-    const confirmed = window.confirm(
-      `Se encontraron ${sections.join(', ')} guardados en este navegador. ¿Quieres importarlos a SQLite? Las secciones seleccionadas reemplazarán los datos compartidos equivalentes para todos los dispositivos.`,
+    const confirmed = await confirmAction(
+      `Se encontraron ${sections.join(', ')} guardados en este navegador. Las secciones seleccionadas reemplazarán los datos compartidos equivalentes para todos los dispositivos.`,
+      'Importar datos',
+      '¿Importar datos locales?',
     )
     if (!confirmed) return
 
@@ -443,7 +532,8 @@ if (app) {
           <span class="deviation-indicator" aria-hidden="true">!</span>
         </div>
         <ul class="deviation-list">
-          ${lateTasks
+   
+        ${lateTasks.slice(0, 5)
             .map(
               (task) => `
                 <li>
@@ -550,7 +640,7 @@ if (app) {
               ${todayTasks
                 .map(
                   (task) => `
-                    <tr class="${task.completed ? 'is-completed' : ''}">
+                    <tr class="${timeBandClass(task.time)} ${task.completed ? 'is-completed' : ''}">
                       <td>
                         <span class="daily-task-title">${escapeHtml(task.title)}</span>
                         ${task.description ? `<span class="daily-task-description">${escapeHtml(task.description)}</span>` : ''}
@@ -580,23 +670,25 @@ if (app) {
   }
 
   const renderTaskAdmin = () => {
-    if (!adminTaskList) return
+    if (!adminTaskList || !adminHistoryList) return
     if (!isAdmin()) {
       adminTaskList.replaceChildren()
+      adminHistoryList.replaceChildren()
       return
     }
     const query = adminSearch?.value.trim().toLocaleLowerCase('es') ?? ''
     const period = adminPeriod?.value ?? ''
-    const status = adminStatus?.value ?? ''
     const filteredTasks = [...tasks]
       .filter((task) => !period || task.period === period)
       .filter((task) => !query || `${task.title} ${task.description}`.toLocaleLowerCase('es').includes(query))
       .sort((first, second) => first.date.localeCompare(second.date) || first.time.localeCompare(second.time))
+    const historyQuery = historySearch?.value.trim().toLocaleLowerCase('es') ?? ''
+    const historyFilterPeriod = historyPeriod?.value ?? ''
+    const status = adminStatus?.value ?? ''
     const filteredHistory = taskHistory
-      .filter((task) => !period || task.period === period)
-      .filter((task) => !status ||
-        (status === 'completed' ? task.completed : status === 'pending' ? !task.completed : task.status === 'En curso'))
-      .filter((task) => !query || `${task.title} ${task.description}`.toLocaleLowerCase('es').includes(query))
+      .filter((task) => !historyFilterPeriod || task.period === historyFilterPeriod)
+      .filter((task) => !status || (status === 'completed' ? task.completed : !task.completed))
+      .filter((task) => !historyQuery || `${task.title} ${task.description}`.toLocaleLowerCase('es').includes(historyQuery))
       .sort((first, second) => second.date.localeCompare(first.date) || second.time.localeCompare(first.time))
     const historyRows = filteredHistory.length
       ? `<div class="admin-table-wrap">
@@ -611,7 +703,7 @@ if (app) {
                   ? `${task.completedBy}${employeeName ? ` · ${employeeName}` : ''}`
                   : '—'
                 return `
-                  <tr>
+                  <tr class="${timeBandClass(task.time)}">
                     <td data-label="Fecha">${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(parseDateKey(task.date))}</td>
                     <td data-label="Hora">${escapeHtml(task.time)}</td>
                     <td data-label="Tarea"><strong>${escapeHtml(task.title)}</strong></td>
@@ -631,7 +723,7 @@ if (app) {
             <thead><tr><th>Fecha de inicio</th><th>Hora</th><th>Tarea</th><th>Periodicidad</th><th>Checklist</th><th>Acciones</th></tr></thead>
             <tbody>
               ${filteredTasks.map((task) => `
-                <tr>
+                <tr class="${timeBandClass(task.time)}">
                   <td data-label="Fecha de inicio">${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(parseDateKey(task.date))}</td>
                   <td data-label="Hora">${escapeHtml(task.time)}</td>
                   <td data-label="Tarea"><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(task.description || 'Sin descripción')}</small></td>
@@ -639,6 +731,7 @@ if (app) {
                   <td data-label="Checklist">${task.checklist.length} pasos</td>
                   <td data-label="Acciones" class="admin-row-actions">
                     <button type="button" data-edit-task="${task.id}">Editar</button>
+                    
                     <button type="button" class="admin-delete" data-admin-delete="${task.id}">Eliminar</button>
                   </td>
                 </tr>
@@ -647,18 +740,7 @@ if (app) {
           </table>
         </div>`
       : '<p class="admin-empty">No hay tareas que coincidan con los filtros.</p>'
-    adminTaskList.insertAdjacentHTML('beforeend', `
-      <section class="task-history-section">
-        <div class="section-header">
-          <div>
-            <p class="eyebrow">Ejecuciones por fecha</p>
-            <h3>Historial de tareas</h3>
-          </div>
-          <p class="section-copy">El historial muestra las ejecuciones de los últimos siete días.</p>
-        </div>
-        ${historyRows}
-      </section>
-    `)
+    adminHistoryList.innerHTML = historyRows
   }
 
   const renderSelectedTasks = () => {
@@ -701,7 +783,7 @@ if (app) {
       ? dayTasks
           .map(
             (task) => `
-              <article class="task-card ${task.completed ? 'is-completed' : ''}">
+              <article class="task-card ${timeBandClass(task.time)} ${task.completed ? 'is-completed' : ''}">
                 <div class="task-head">
                   <span class="label ${task.period}">${periodLabel(task.period)}</span>
                   <span class="status ${task.status.toLowerCase().replace(/\s+/g, '-')}">${task.status}</span>
@@ -717,7 +799,8 @@ if (app) {
                 <p>${escapeHtml(task.description)}</p>
                 <div class="task-foot">
                   <span>${escapeHtml(task.time)}</span>
-                  ${isAdmin() ? `<button class="delete-task-btn" type="button" data-delete-task="${task.id}" aria-label="Eliminar ${escapeHtml(task.title)}">Eliminar</button>` : ''}
+                
+                  ${isAdmin() ? `<button class="delete-task-btn" type="button" data-delete-task="${task.id}">Eliminar</button>` : ''}
                 </div>
               </article>
             `,
@@ -744,7 +827,7 @@ if (app) {
           .slice(0, 2)
           .map(
             (task) =>
-              `<span class="calendar-event ${task.period}">${isOccurrenceOverdue(task) ? 'Vencida · ' : ''}${escapeHtml(task.time)} · ${escapeHtml(task.title)}</span>`,
+              `<span class="calendar-event ${task.period} ${timeBandClass(task.time)}">${isOccurrenceOverdue(task) ? 'Vencida · ' : ''}${escapeHtml(task.time)} · ${escapeHtml(task.title)}</span>`,
           )
           .join('')
         const more = events.length > 2 ? `<span class="calendar-more">+${events.length - 2} más</span>` : ''
@@ -905,6 +988,7 @@ if (app) {
     dialog?.close()
     checklistDialog?.close()
     stockDialog?.close()
+    stockCountDialog?.close()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   })
 
@@ -980,7 +1064,12 @@ if (app) {
     }
     const button = target.closest<HTMLButtonElement>('[data-remove-user]')
     const username = button?.dataset.removeUser
-    if (!username || !window.confirm(`¿Eliminar la cuenta "${username}"?`)) return
+    if (!username) return
+    const confirmed = await confirmAction(
+      `Se eliminará la cuenta "${username}". Esta acción no se puede deshacer.`,
+      'Sí, eliminar',
+    )
+    if (!confirmed) return
     try {
       const result = await apiRequest<{ accounts: PublicAccount[] }>(
         `/accounts/${encodeURIComponent(username)}`,
@@ -1058,7 +1147,12 @@ if (app) {
 
   stockSection?.addEventListener('click', (event) => {
     const target = event.target
-    if (!(target instanceof Element) || !target.closest('[data-add-stock]')) return
+    if (!(target instanceof Element)) return
+    if (target.closest('[data-stock-count]')) {
+      openStockCountDialog()
+      return
+    }
+    if (!target.closest('[data-add-stock]')) return
     openStockDialog()
   })
 
@@ -1076,7 +1170,12 @@ if (app) {
     if (deleteButton?.dataset.deleteStock) {
       const productId = Number(deleteButton.dataset.deleteStock)
       const product = stock.find((item) => item.id === productId)
-      if (!product || !window.confirm(`¿Eliminar "${product.name}" del inventario?`)) return
+      if (!product) return
+      const confirmed = await confirmAction(
+        `Se eliminará "${product.name}" del inventario. Esta acción no se puede deshacer.`,
+        'Sí, eliminar',
+      )
+      if (!confirmed) return
       try {
         const result = await apiRequest<{ stock: StockProduct[] }>(`/stock/products/${productId}`, 'DELETE')
         stock = result.stock
@@ -1202,6 +1301,27 @@ if (app) {
     }
   })
 
+  stockCountForm?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!isAdmin() || !stockCountForm) {
+      showNotification('Solo un administrador puede gestionar el stock.', 'warning')
+      return
+    }
+    if (!stockCountForm.reportValidity()) return
+
+    const counts = [...stockCountForm.querySelectorAll<HTMLInputElement>('[data-stock-count]')]
+      .map((input) => ({ id: Number(input.dataset.stockCount), quantity: Number(input.value) }))
+    try {
+      const result = await apiRequest<{ stock: StockProduct[] }>('/stock/count', 'PUT', { counts })
+      stock = result.stock
+      renderStock()
+      stockCountDialog?.close()
+      showNotification('Control de stock guardado correctamente.')
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'No se pudo guardar el control de stock.', 'warning')
+    }
+  })
+
   stockDialog?.addEventListener('close', () => {
     editingStockId = null
     pendingStockPhoto = undefined
@@ -1214,6 +1334,10 @@ if (app) {
 
   document.querySelectorAll<HTMLButtonElement>('[data-close-stock-dialog]').forEach((button) => {
     button.addEventListener('click', () => stockDialog?.close())
+  })
+
+  document.querySelectorAll<HTMLButtonElement>('[data-close-stock-count]').forEach((button) => {
+    button.addEventListener('click', () => stockCountDialog?.close())
   })
 
   document.querySelectorAll<HTMLButtonElement>('[data-close-dialog]').forEach((button) => {
@@ -1243,8 +1367,36 @@ if (app) {
     }
   })
 
+  document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tab = button.dataset.adminTab
+      if (tab === 'tasks' || tab === 'history' || tab === 'users') setAdminTab(tab)
+    })
+    button.addEventListener('keydown', (event) => {
+      const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]')]
+      const currentIndex = tabs.indexOf(button)
+      const nextIndex = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? (currentIndex + 1) % tabs.length
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? (currentIndex - 1 + tabs.length) % tabs.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? tabs.length - 1
+              : -1
+      if (nextIndex < 0) return
+      event.preventDefault()
+      const nextTab = tabs[nextIndex]
+      nextTab?.focus()
+      const tab = nextTab?.dataset.adminTab
+      if (tab === 'tasks' || tab === 'history' || tab === 'users') setAdminTab(tab)
+    })
+  })
+
   adminSearch?.addEventListener('input', renderTaskAdmin)
   adminPeriod?.addEventListener('change', renderTaskAdmin)
+  historySearch?.addEventListener('input', renderTaskAdmin)
+  historyPeriod?.addEventListener('change', renderTaskAdmin)
   adminStatus?.addEventListener('change', renderTaskAdmin)
 
   adminTaskList?.addEventListener('click', async (event) => {
@@ -1259,7 +1411,12 @@ if (app) {
       if (!isAdmin()) return
       const taskId = Number(deleteButton.dataset.adminDelete)
       const task = tasks.find((item) => item.id === taskId)
-      if (!task || !window.confirm(`¿Eliminar la tarea "${task.title}"?`)) return
+      if (!task) return
+      const confirmed = await confirmAction(
+        `Se eliminará la tarea "${task.title}". Esta acción no se puede deshacer.`,
+        'Sí, eliminar',
+      )
+      if (!confirmed) return
       try {
         const result = await apiRequest<{ tasks: CalendarTask[] }>(`/tasks/${taskId}`, 'DELETE')
         tasks = result.tasks
@@ -1300,7 +1457,11 @@ if (app) {
     if (!file) return
     try {
       const importedTasks = parseTasksJson(await file.text())
-      if (!window.confirm(`El archivo contiene ${importedTasks.length} tareas. Reemplazará todas las tareas actuales. ¿Continuar?`)) return
+      if (!(await confirmAction(
+        `El archivo contiene ${importedTasks.length} tareas y reemplazará todas las tareas actuales.`,
+        'Reemplazar tareas',
+        '¿Importar tareas?',
+      ))) return
       const result = await apiRequest<{ tasks: CalendarTask[] }>('/tasks', 'PUT', { tasks: importedTasks })
       tasks = result.tasks
       await loadTaskOccurrences()
@@ -1384,9 +1545,17 @@ if (app) {
       if (occurrenceDate) openTaskChecklist(Number(checklistButton.dataset.openChecklist), occurrenceDate)
     } else if (deleteButton?.dataset.deleteTask) {
       if (!isAdmin()) return
+      const taskId = Number(deleteButton.dataset.deleteTask)
+      const task = tasks.find((item) => item.id === taskId)
+      if (!task) return
+      const confirmed = await confirmAction(
+        `Se eliminará la tarea "${task.title}". Esta acción no se puede deshacer.`,
+        'Sí, eliminar',
+      )
+      if (!confirmed) return
       try {
         const result = await apiRequest<{ tasks: CalendarTask[] }>(
-          `/tasks/${Number(deleteButton.dataset.deleteTask)}`,
+          `/tasks/${taskId}`,
           'DELETE',
         )
         tasks = result.tasks
@@ -1491,7 +1660,7 @@ if (app) {
   }
 
   const refreshDatabaseData = async () => {
-    if (!currentUser || dialog?.open || checklistDialog?.open || stockDialog?.open) return
+    if (!currentUser || dialog?.open || checklistDialog?.open || stockDialog?.open || stockCountDialog?.open) return
     try {
       await loadDatabaseData(false)
     } catch (error) {

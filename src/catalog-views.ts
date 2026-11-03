@@ -159,13 +159,14 @@ export function renderStockView(
                     Cantidad
                     <input data-stock-adjustment type="number" min="0.001" step="0.001" value="1" aria-label="Cantidad a mover de ${escapeHtml(product.name)}" />
                   </label>
-                  <button type="button" class="stock-entry-button" data-stock-change="${product.id}" data-direction="in" ${product.counted ? '' : 'disabled'}>Entrada</button>
-                  <button type="button" class="stock-exit-button" data-stock-change="${product.id}" data-direction="out" ${product.counted ? '' : 'disabled'}>Salida</button>
+
                 </div>
                 ${product.counted ? '' : '<small class="stock-count-required">Realiza el recuento antes de registrar movimientos.</small>'}
                 <div class="stock-item-actions">
                   <button type="button" data-edit-stock="${product.id}">Editar</button>
                   <button type="button" class="admin-delete" data-delete-stock="${product.id}">Eliminar</button>
+                </div>
+              </div>
                 </div>
               </div>
             </details>

@@ -347,10 +347,51 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       database.transaction(() => {
         const updatedTask = updated.find((task) => task.id === id)
         if (!updatedTask) throw new Error('No se encontró la tarea.')
+        const today = dateKey(new Date())
+        const occurrence = database.prepare(`
+          SELECT status, completed, checklist_json FROM task_occurrences
+          WHERE task_id = ? AND date = ?
+        `).get(id, today) as {
+          status: CalendarTask['status']
+          completed: number
+          checklist_json: string
+        } | undefined
+
         updateTaskRow(database, updatedTask)
+        if (occurrence && !occurrence.completed) {
+          const appliesToday = taskOccurrenceDates(updatedTask, today, today).length > 0
+          if (appliesToday) {
+            const previousChecklist = JSON.parse(occurrence.checklist_json) as CalendarTask['checklist']
+            const checklist = updatedTask.checklist.map((step) => ({
+              ...step,
+              completed: previousChecklist.some((previousStep) =>
+                previousStep.id === step.id && previousStep.text === step.text && previousStep.completed,
+              ),
+            }))
+            const checklistChanged = current.checklist.length !== updatedTask.checklist.length ||
+              current.checklist.some((step, index) =>
+                step.id !== updatedTask.checklist[index]?.id ||
+                step.text !== updatedTask.checklist[index]?.text,
+              )
+            const statusChanged = current.status !== updatedTask.status
+            const status = statusChanged
+              ? updatedTask.status
+              : checklistChanged
+                ? checklist.some((step) => step.completed) ? 'En curso' : 'Pendiente'
+                : occurrence.status
+            database.prepare(`
+              UPDATE task_occurrences SET status = ?, checklist_json = ?,
+                completed_by = NULL, completed_by_name = NULL
+              WHERE task_id = ? AND date = ? AND completed = 0
+            `).run(status, JSON.stringify(checklist), id, today)
+          } else {
+            database.prepare('DELETE FROM task_occurrences WHERE task_id = ? AND date = ? AND completed = 0')
+              .run(id, today)
+          }
+        }
         database.prepare('DELETE FROM task_occurrences WHERE task_id = ? AND date > ?')
-          .run(id, dateKey(new Date()))
-        materializeTaskOccurrences(database, updatedTask, dateKey(new Date()))
+          .run(id, today)
+        materializeTaskOccurrences(database, updatedTask, today)
       })()
       return this.getTasks()
     },
@@ -386,6 +427,40 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
         database.prepare('DELETE FROM stock_products').run()
         insertStock(database, stock)
       })()
+      return this.getStock()
+    },
+    updateStockCounts(value: unknown): StockProduct[] {
+      if (!Array.isArray(value)) throw new Error('Los datos del recuento no son válidos.')
+      const counts = value.map((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+          throw new Error('Cada producto debe incluir un identificador y una cantidad válida.')
+        }
+        const { id, quantity } = entry as Record<string, unknown>
+        if (typeof id !== 'number' || !Number.isInteger(id) || id < 1 ||
+          typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 0) {
+          throw new Error('Cada producto debe incluir un identificador y una cantidad válida.')
+        }
+        return { id, quantity: Math.round(quantity * 1000) / 1000 }
+      })
+      if (new Set(counts.map((count) => count.id)).size !== counts.length) {
+        throw new Error('El recuento contiene productos duplicados.')
+      }
+
+      const updateCount = database.prepare(`
+        UPDATE stock_products SET quantity = ?, counted = 1, updated_at = ? WHERE id = ?
+      `)
+      const updateCounts = database.transaction(() => {
+        const currentIds = database.prepare('SELECT id FROM stock_products ORDER BY id')
+          .pluck().all() as number[]
+        const submittedIds = counts.map((count) => count.id).sort((first, second) => first - second)
+        if (currentIds.length !== submittedIds.length ||
+          currentIds.some((id, index) => id !== submittedIds[index])) {
+          throw new Error('El inventario ha cambiado. Actualiza la lista e inténtalo de nuevo.')
+        }
+        const updatedAt = new Date().toISOString()
+        for (const count of counts) updateCount.run(count.quantity, updatedAt, count.id)
+      })
+      updateCounts()
       return this.getStock()
     },
     createStockProduct(input: StockProductInput): StockProduct[] {

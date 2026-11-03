@@ -15,6 +15,7 @@ import {
   tasksForDate,
   taskOccurrenceDates,
   taskOccursOnDate,
+  taskTimeBand,
   updateChecklistStep,
   updateTaskCompletion,
   updateTaskDetails,
@@ -41,6 +42,25 @@ describe('calendar dates', () => {
     const date = parseDateKey('2026-10-10')
 
     expect(dateKey(date)).toBe('2026-10-10')
+  })
+
+  describe('task time bands', () => {
+    it('uses the requested colors at their exact hour boundaries', () => {
+      expect(taskTimeBand('05:59')).toBeUndefined()
+      expect(taskTimeBand('06:00')).toBe('morning')
+      expect(taskTimeBand('11:59')).toBe('morning')
+      expect(taskTimeBand('12:00')).toBe('afternoon')
+      expect(taskTimeBand('17:59')).toBe('afternoon')
+      expect(taskTimeBand('18:00')).toBe('night')
+      expect(taskTimeBand('23:59')).toBe('night')
+      expect(taskTimeBand('00:00')).toBeUndefined()
+    })
+
+    it('ignores malformed times', () => {
+      expect(taskTimeBand('24:00')).toBeUndefined()
+      expect(taskTimeBand('6:00')).toBeUndefined()
+      expect(taskTimeBand('noon')).toBeUndefined()
+    })
   })
 
   it('rejects impossible or malformed date keys', () => {
