@@ -193,7 +193,8 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
 
   app.get('/api/tasks/history', authenticate, (_request, response) => {
     requireAdmin(accountFromResponse(response))
-    response.json({ tasks: database.getTaskHistory() })
+    const tasks = database.getTaskHistory().map(({ checklist: _checklist, ...task }) => task)
+    response.json({ tasks })
   })
 
   app.put('/api/tasks', authenticate, (request, response, next) => {
@@ -285,6 +286,13 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
       }
       const user = accountFromResponse(response)
       requireAdminForPastOccurrence(user, occurrenceDate)
+      if (occurrenceDate < dateKey(new Date()) && !request.body.completed) {
+        const occurrence = database.getTaskOccurrences(occurrenceDate, occurrenceDate)
+          .find((task) => task.id === id)
+        if (occurrence?.completed) {
+          throw new HttpError(403, 'No se puede cambiar una tarea completada a no realizada.')
+        }
+      }
       response.json({
         occurrences: database.completeTaskOccurrence(
           id,
@@ -310,7 +318,9 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
         throw new HttpError(400, 'El cambio del paso no es válido.')
       }
       const user = accountFromResponse(response)
-      requireAdminForPastOccurrence(user, occurrenceDate)
+      if (occurrenceDate < dateKey(new Date())) {
+        throw new HttpError(403, 'No se pueden editar checklists de fechas pasadas.')
+      }
       response.json({
         occurrences: database.updateTaskChecklistOccurrence(
           id,

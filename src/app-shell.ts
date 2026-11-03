@@ -171,13 +171,14 @@ export function renderAppShell(): string {
               <p class="section-copy">Crea, revisa y organiza las tareas guardadas en este dispositivo.</p>
             </div>
             <div class="admin-actions">
-              <button class="calendar-today-btn" type="button" data-export-tasks>Exportar archivo</button>
-              <button class="calendar-today-btn" type="button" data-import-tasks>Importar archivo</button>
+            
+              <button class="calendar-today-btn" type="button" hidden data-export-tasks>Exportar archivo</button>
+              <button class="calendar-today-btn" type="button" hidden data-import-tasks>Importar archivo</button>
               <input id="task-import-file" type="file" accept="application/json,.json" hidden />
               <button class="primary-action" type="button" data-add-task data-admin-only>Nueva tarea</button>
             </div>
           </div>
-          <p class="admin-storage-note">Puedes descargar una copia JSON y restaurarla después o en otro dispositivo. Importar reemplaza las tareas actuales.</p>
+          
           <div class="admin-filters" aria-label="Filtros de tareas">
             <label>
               Buscar

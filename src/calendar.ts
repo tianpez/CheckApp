@@ -102,7 +102,10 @@ export function taskOccurrenceDates(
   return dates
 }
 
-export function overdueTasks(tasks: CalendarTask[], now: Date): CalendarTask[] {
+export function overdueTasks<T extends Pick<CalendarTask, 'date' | 'time' | 'completed'>>(
+  tasks: T[],
+  now: Date,
+): T[] {
   const nowTime = now.getTime()
   return tasks
     .filter((task) => {

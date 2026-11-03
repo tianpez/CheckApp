@@ -265,11 +265,14 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
     },
     getTaskHistory(): CalendarTask[] {
       const today = dateKey(new Date())
+      const weekStartDate = new Date()
+      weekStartDate.setDate(weekStartDate.getDate() - 6)
+      const weekStart = dateKey(weekStartDate)
       const definitions = this.getTasks()
       database.transaction(() => {
         for (const task of definitions) materializeTaskOccurrences(database, task, today)
       })()
-      return getOccurrenceRows(database, '0001-01-01', today)
+      return getOccurrenceRows(database, weekStart, today)
     },
     updateTaskChecklistOccurrence(
       taskId: number,

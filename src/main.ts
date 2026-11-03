@@ -32,6 +32,8 @@ import {
 } from './stock'
 import { apiRequest, type BootstrapData, type PublicAccount, type SessionUser } from './api'
 
+type TaskHistoryEntry = Omit<CalendarTask, 'checklist'>
+
 const app = document.querySelector<HTMLDivElement>('#app')
 
 if (app) {
@@ -109,7 +111,7 @@ if (app) {
   let selectedDate = dateKey(now)
   let tasks: CalendarTask[] = []
   let taskOccurrences: CalendarTask[] = []
-  let taskHistory: CalendarTask[] = []
+  let taskHistory: TaskHistoryEntry[] = []
   let stock: StockProduct[] = []
   let libraryData: BootstrapData['library'] = []
   let notificationTimeout: number | undefined
@@ -117,6 +119,7 @@ if (app) {
   let editingTaskId: number | null = null
   let editingStockId: number | null = null
   let pendingStockPhoto: string | undefined
+  let activeView: 'tasks' | 'calendar' | 'library' | 'stock' | 'admin' = 'tasks'
 
   const periodLabel = (period: Period) =>
     period === 'daily' ? 'Diaria' :
@@ -180,6 +183,7 @@ if (app) {
       showNotification('Solo un administrador puede acceder a esa sección.', 'warning')
       return
     }
+    activeView = view
     if (dailyChecklistSection) dailyChecklistSection.hidden = view !== 'tasks'
     if (calendarSection) calendarSection.hidden = view !== 'calendar'
     if (librarySection) librarySection.hidden = view !== 'library'
@@ -215,7 +219,9 @@ if (app) {
     renderTaskAdmin()
     renderUserList()
     renderStock()
-    if (showTasks || !isAdmin()) setActiveView('tasks')
+    if (showTasks || (!isAdmin() && ['calendar', 'stock', 'admin'].includes(activeView))) {
+      setActiveView('tasks')
+    }
   }
 
   const showNotification = (message: string, kind: 'success' | 'warning' = 'success') => {
@@ -262,7 +268,6 @@ if (app) {
     await loadTaskOccurrences()
     renderLibrary()
     syncSessionUI(showTasks)
-    if (!isAdmin()) setActiveView('tasks')
   }
 
   const loadTaskOccurrences = async () => {
@@ -275,12 +280,12 @@ if (app) {
         ? Promise.resolve({ tasks: [] as CalendarTask[] })
         : apiRequest<{ tasks: CalendarTask[] }>(`/tasks/occurrences?from=${today}&to=${today}`),
       isAdmin()
-        ? apiRequest<{ tasks: CalendarTask[] }>('/tasks/history')
-        : Promise.resolve({ tasks: [] as CalendarTask[] }),
+        ? apiRequest<{ tasks: TaskHistoryEntry[] }>('/tasks/history')
+        : Promise.resolve({ tasks: [] as TaskHistoryEntry[] }),
     ])
     if (loadId !== occurrenceLoadId) return
     taskHistory = historyResponse.tasks
-    taskOccurrences = mergeOccurrences(calendarResponse.tasks, todayResponse.tasks, taskHistory)
+    taskOccurrences = mergeOccurrences(calendarResponse.tasks, todayResponse.tasks)
     renderDailyChecklist()
     renderCalendar()
     renderTaskAdmin()
@@ -431,7 +436,9 @@ if (app) {
           <div>
             <p class="eyebrow">Revisión necesaria</p>
             <h3>${lateTasks.length} ${lateTasks.length === 1 ? 'tarea retrasada' : 'tareas retrasadas'}</h3>
-            <p>Revisa cada checklist y confirma materiales, presentación y condiciones del servicio.</p>
+            <p>${isAdmin()
+              ? 'Estas ejecuciones quedan registradas como tareas no realizadas.'
+              : 'Revisa cada checklist y confirma materiales, presentación y condiciones del servicio.'}</p>
           </div>
           <span class="deviation-indicator" aria-hidden="true">!</span>
         </div>
@@ -441,7 +448,9 @@ if (app) {
               (task) => `
                 <li>
                   <span><strong>${escapeHtml(task.title)}</strong><small>${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(parseDateKey(task.date))} · ${escapeHtml(task.time)}</small></span>
-                  <button type="button" data-open-checklist="${task.id}" data-occurrence-date="${task.date}">${isAdmin() ? 'Reabrir checklist' : 'Revisar checklist'}</button>
+                  ${isAdmin()
+                    ? '<span class="status pendiente">Tarea no realizada</span>'
+                    : `<button type="button" data-open-checklist="${task.id}" data-occurrence-date="${task.date}">Revisar checklist</button>`}
                 </li>
               `,
             )
@@ -495,7 +504,7 @@ if (app) {
             )
             .join('')}
         </ol>
-        <p class="checklist-completion-note" ${task.completed || isOccurrenceOverdue(task) ? '' : 'hidden'}>${isOccurrenceOverdue(task) ? 'Ejecución vencida. El administrador puede reabrir su checklist original.' : 'Checklist finalizada. La tarea está marcada como completada.'}</p>
+        <p class="checklist-completion-note" ${task.completed || isOccurrenceOverdue(task) ? '' : 'hidden'}>${isOccurrenceOverdue(task) ? 'Ejecución vencida. La tarea queda registrada como no realizada.' : 'Checklist finalizada. La tarea está marcada como completada.'}</p>
         <div class="dialog-actions">
           <button class="calendar-today-btn" type="button" data-close-checklist>Cerrar</button>
         </div>
@@ -504,6 +513,10 @@ if (app) {
   }
 
   const openTaskChecklist = (taskId: number, occurrenceDate: string) => {
+    if (isAdmin() && occurrenceDate < dateKey(new Date())) {
+      showNotification('No se pueden abrir checklists de fechas pasadas.', 'warning')
+      return
+    }
     if (!checklistDialog) return
     renderTaskChecklist(taskId, occurrenceDate)
     if (!checklistDialog.open) checklistDialog.showModal()
@@ -588,10 +601,9 @@ if (app) {
     const historyRows = filteredHistory.length
       ? `<div class="admin-table-wrap">
           <table class="admin-task-table">
-            <thead><tr><th>Fecha</th><th>Hora</th><th>Tarea</th><th>Periodicidad</th><th>Estado</th><th>Pasos</th><th>Realizada por</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Hora</th><th>Tarea</th><th>Periodicidad</th><th>Estado</th><th>Realizada por</th></tr></thead>
             <tbody>
               ${filteredHistory.map((task) => {
-                const overdue = isOccurrenceOverdue(task)
                 const employeeName = task.completedByName ?? accounts.find(
                   (account) => account.username.toLocaleLowerCase() === task.completedBy?.toLocaleLowerCase(),
                 )?.employeeName
@@ -604,12 +616,8 @@ if (app) {
                     <td data-label="Hora">${escapeHtml(task.time)}</td>
                     <td data-label="Tarea"><strong>${escapeHtml(task.title)}</strong></td>
                     <td data-label="Periodicidad">${periodLabel(task.period)}</td>
-                    <td data-label="Estado">${overdue ? 'Vencida' : task.completed ? 'Completada' : task.status}</td>
-                    <td data-label="Pasos">${task.checklist.filter((step) => step.completed).length}/${task.checklist.length}</td>
+                    <td data-label="Estado">${task.completed ? 'Completada' : 'Tarea no realizada'}</td>
                     <td data-label="Realizada por">${escapeHtml(completedBy)}</td>
-                    <td data-label="Acción" class="admin-row-actions">
-                      <button type="button" data-open-checklist="${task.id}" data-occurrence-date="${task.date}">${overdue ? 'Reabrir checklist' : 'Ver checklist'}</button>
-                    </td>
                   </tr>
                 `
               }).join('')}
@@ -646,7 +654,7 @@ if (app) {
             <p class="eyebrow">Ejecuciones por fecha</p>
             <h3>Historial de tareas</h3>
           </div>
-          <p class="section-copy">Las tareas no realizadas quedan vencidas y se conservan aquí.</p>
+          <p class="section-copy">El historial muestra las ejecuciones de los últimos siete días.</p>
         </div>
         ${historyRows}
       </section>
@@ -698,7 +706,9 @@ if (app) {
                   <span class="label ${task.period}">${periodLabel(task.period)}</span>
                   <span class="status ${task.status.toLowerCase().replace(/\s+/g, '-')}">${task.status}</span>
                 </div>
-                <button class="guide-task-btn" type="button" data-open-checklist="${task.id}" data-occurrence-date="${task.date}">${isOccurrenceOverdue(task) && isAdmin() ? 'Reabrir tarea vencida' : 'Abrir checklist'} · ${task.checklist.filter((step) => step.completed).length}/${task.checklist.length}</button>
+                ${isAdmin() && task.date < dateKey(new Date())
+                  ? `<span class="status ${task.completed ? 'listo' : 'pendiente'}">${task.completed ? 'Completada' : 'Tarea no realizada'}</span>`
+                  : `<button class="guide-task-btn" type="button" data-open-checklist="${task.id}" data-occurrence-date="${task.date}">Abrir checklist · ${task.checklist.filter((step) => step.completed).length}/${task.checklist.length}</button>`}
                 <label class="task-check">
                   <input type="checkbox" data-toggle-completion="${task.id}" data-occurrence-date="${task.date}" ${task.completed ? 'checked' : ''} aria-label="Marcar ${escapeHtml(task.title)} como completada" />
                   <span class="task-checkmark" aria-hidden="true"></span>
@@ -1240,13 +1250,9 @@ if (app) {
   adminTaskList?.addEventListener('click', async (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
-    const checklistButton = target.closest<HTMLButtonElement>('[data-open-checklist]')
     const editButton = target.closest<HTMLButtonElement>('[data-edit-task]')
     const deleteButton = target.closest<HTMLButtonElement>('[data-admin-delete]')
-    if (checklistButton?.dataset.openChecklist && checklistButton.dataset.occurrenceDate) {
-      if (!isAdmin()) return
-      openTaskChecklist(Number(checklistButton.dataset.openChecklist), checklistButton.dataset.occurrenceDate)
-    } else if (editButton?.dataset.editTask) {
+    if (editButton?.dataset.editTask) {
       if (!isAdmin()) return
       openTaskDialog(Number(editButton.dataset.editTask))
     } else if (deleteButton?.dataset.adminDelete) {

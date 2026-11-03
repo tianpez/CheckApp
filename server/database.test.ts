@@ -192,7 +192,7 @@ describe('SQLite-backed application API', () => {
     ).get(task.id, today)).toEqual({ completed_by: '1042', completed_by_name: 'María Ruiz' })
   })
 
-  it('keeps each recurrence independent and lets only admins reopen past checklists', async () => {
+  it('limits history to seven days and lets admins mark past tasks as not done without reopening checklists', async () => {
     const today = dateKey(new Date())
     const yesterdayDate = new Date()
     yesterdayDate.setDate(yesterdayDate.getDate() - 1)
@@ -215,6 +215,15 @@ describe('SQLite-backed application API', () => {
     const task = created.body.tasks.find((item: { title: string }) => item.title === 'Preparación recurrente')
 
     const history = await admin.get('/api/tasks/history').expect(200)
+    const weekStartDate = new Date()
+    weekStartDate.setDate(weekStartDate.getDate() - 6)
+    const weekStart = dateKey(weekStartDate)
+    expect(history.body.tasks.every((occurrence: { date: string }) =>
+      occurrence.date >= weekStart && occurrence.date <= today))
+      .toBe(true)
+    expect(history.body.tasks.every((occurrence: object) =>
+      !Object.hasOwn(occurrence, 'checklist')))
+      .toBe(true)
     expect(history.body.tasks).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: task.id, date: yesterday, completed: false }),
       expect.objectContaining({ id: task.id, date: today, completed: false }),
@@ -225,16 +234,30 @@ describe('SQLite-backed application API', () => {
       .send({ completed: true })
       .expect(403)
 
-    const reopened = await admin.patch(`/api/tasks/${task.id}/occurrences/${yesterday}/checklist/1`)
+    await admin.patch(`/api/tasks/${task.id}/occurrences/${yesterday}/checklist/1`)
       .set('X-CheckApp-Request', 'database-write')
       .send({ completed: true })
-      .expect(200)
-    expect(reopened.body.occurrences[0]).toMatchObject({
-      id: task.id,
-      date: yesterday,
-      completed: false,
-      checklist: [{ id: 1, completed: true }, { id: 2, completed: false }],
-    })
+      .expect(403)
+
+    const completedChecklist = createChecklistSteps('Preparar\nVerificar')
+      .map((step) => ({ ...step, completed: true }))
+    database.raw.prepare(`
+      UPDATE task_occurrences
+      SET status = 'Listo', completed = 1, completed_by = 'admin',
+        completed_by_name = 'Administrador', checklist_json = ?
+      WHERE task_id = ? AND date = ?
+    `).run(JSON.stringify(completedChecklist), task.id, yesterday)
+    const markedNotDone = await admin.patch(`/api/tasks/${task.id}/occurrences/${yesterday}/completion`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ completed: false })
+      .expect(403, { error: 'No se puede cambiar una tarea completada a no realizada.' })
+    expect(markedNotDone.body).not.toHaveProperty('occurrences')
+    expect(database.getTaskOccurrences(yesterday, yesterday).find((item) => item.id === task.id))
+      .toMatchObject({
+        status: 'Listo',
+        completed: true,
+        checklist: [{ id: 1, completed: true }, { id: 2, completed: true }],
+      })
     expect(database.getTaskOccurrences(today, today).find((item) => item.id === task.id))
       .toMatchObject({ completed: false, checklist: [{ completed: false }, { completed: false }] })
   })
@@ -368,7 +391,8 @@ describe('SQLite-backed application API', () => {
         })
         expect(upgradedDatabase.getTasks()[0]).toMatchObject({ title: 'Tarea anterior' })
         expect(upgradedDatabase.getTasks()[0].completedBy).toBeUndefined()
-        expect(upgradedDatabase.getTaskHistory().find((task) => task.id === 1)).toMatchObject({
+        expect(upgradedDatabase.getTaskOccurrences('2026-10-20', '2026-10-20')
+          .find((task) => task.id === 1)).toMatchObject({
           title: 'Tarea anterior',
           completed: true,
           completedBy: '1042',
