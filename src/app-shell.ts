@@ -179,7 +179,7 @@ export function renderAppShell(): string {
             <div>
               <p class="eyebrow">Panel de control</p>
               <h2 id="task-admin-title">Panel de administración</h2>
-              <p class="section-copy">Gestiona las tareas del equipo y las cuentas de acceso desde un solo lugar.</p>
+              <p class="section-copy">Gestiona tareas, accesos de empleados y tutoriales de la Biblioteca.</p>
             </div>
           </div>
 
@@ -187,6 +187,7 @@ export function renderAppShell(): string {
             <button class="admin-tab is-active" id="admin-tab-tasks" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-tasks" tabindex="0" data-admin-tab="tasks">Administración de tareas</button>
             <button class="admin-tab" id="admin-tab-history" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-history" tabindex="-1" data-admin-tab="history">Historial</button>
             <button class="admin-tab" id="admin-tab-users" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-users" tabindex="-1" data-admin-tab="users">Accesos y empleados</button>
+            <button class="admin-tab" id="admin-tab-library" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-library" tabindex="-1" data-admin-tab="library">Biblioteca</button>
           </div>
 
           <section class="admin-management-card task-management-card" id="admin-panel-tasks" role="tabpanel" aria-labelledby="admin-tab-tasks" tabindex="0">
@@ -277,6 +278,56 @@ export function renderAppShell(): string {
               </form>
             </div>
             <div id="user-list" class="user-list"></div>
+          </section>
+
+          <section class="admin-management-card library-admin-section" id="admin-panel-library" role="tabpanel" aria-labelledby="admin-tab-library" tabindex="0" hidden>
+            <div class="admin-management-heading">
+              <div>
+                <p class="eyebrow">Contenido de servicio</p>
+                <h3>Agregar tutorial a la Biblioteca</h3>
+                <p class="section-copy">Crea una guía con pasos, palabras clave e imagen. El tutorial aparecerá en Biblioteca para todo el equipo.</p>
+              </div>
+            </div>
+            <form id="library-tutorial-form" class="library-tutorial-form">
+              <div class="form-row">
+                <label>
+                  Categoría
+                  <select name="category" required>
+                    ${LIBRARY_CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join('')}
+                  </select>
+                </label>
+                <label>
+                  Título
+                  <input name="title" type="text" maxlength="90" required />
+                </label>
+              </div>
+              <label>
+                Resumen
+                <textarea name="summary" rows="2" maxlength="280" required></textarea>
+              </label>
+              <label>
+                Palabras clave
+                <textarea name="keywords" rows="2" maxlength="500" placeholder="Separadas por coma o una por línea" required></textarea>
+                <span class="form-help">Se utilizan para encontrar el tutorial en las búsquedas.</span>
+              </label>
+              <label>
+                Pasos del tutorial
+                <textarea name="steps" rows="6" maxlength="5000" placeholder="Escribe un paso por línea" required></textarea>
+              </label>
+              <div class="library-tutorial-image-field">
+                <label>
+                  Imagen del tutorial (JPG, PNG o WebP)
+                  <input id="library-tutorial-image" name="image" type="file" accept="image/*" required />
+                  <span class="form-help">La imagen se optimiza antes de guardarse en la Biblioteca.</span>
+                </label>
+                <div id="library-tutorial-image-preview" class="library-tutorial-image-preview" aria-live="polite">
+                  <span>Vista previa de la imagen</span>
+                </div>
+              </div>
+              <div class="dialog-actions">
+                <button class="primary-action" type="submit">Guardar tutorial</button>
+              </div>
+            </form>
           </section>
         </section>
 

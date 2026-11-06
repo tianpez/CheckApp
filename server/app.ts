@@ -352,6 +352,32 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
     response.json({ articles: database.getLibrary() })
   })
 
+  app.get('/api/library/:id/image', authenticate, (request, response, next) => {
+    try {
+      const id = request.params.id
+      if (typeof id !== 'string') throw new HttpError(400, 'El identificador del tutorial no es válido.')
+      const image = database.getLibraryImage(id)
+      if (!image) throw new HttpError(404, 'No se encontró la imagen del tutorial.')
+      const base64 = image.slice('data:image/jpeg;base64,'.length)
+      response
+        .type('image/jpeg')
+        .set('Cache-Control', 'private, max-age=3600')
+        .send(Buffer.from(base64, 'base64'))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  app.post('/api/library', authenticate, (request, response, next) => {
+    try {
+      requireRequestToken(request)
+      requireAdmin(accountFromResponse(response))
+      response.status(201).json({ articles: database.createLibraryArticle(request.body?.article) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
   app.get('/api/stock', authenticate, (_request, response) => {
     requireAdmin(accountFromResponse(response))
     response.json({ stock: database.getStock() })

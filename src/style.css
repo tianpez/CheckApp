@@ -784,10 +784,20 @@ img {
 
 .library-article {
   min-width: 0;
+  overflow: hidden;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.84);
+}
+
+.library-article-image {
+  display: block;
+  width: calc(100% + 40px);
+  max-height: 230px;
+  margin: -20px -20px 17px;
+  object-fit: cover;
+  background: rgba(226, 216, 199, 0.35);
 }
 
 .library-article-heading {
@@ -861,6 +871,76 @@ img {
   border-radius: 16px;
   color: var(--muted);
   text-align: center;
+}
+
+.library-tutorial-form {
+  display: grid;
+  gap: 16px;
+  max-width: 900px;
+}
+
+.library-tutorial-form > label,
+.library-tutorial-form .form-row > label,
+.library-tutorial-image-field > label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.library-tutorial-form input:not([type="file"]),
+.library-tutorial-form select,
+.library-tutorial-form textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.library-tutorial-form textarea {
+  min-height: auto;
+  resize: vertical;
+}
+
+.library-tutorial-form input[type="file"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--muted);
+}
+
+.library-tutorial-image-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.library-tutorial-image-preview {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: rgba(226, 216, 199, 0.22);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.library-tutorial-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
 }
 
 .stock-section[hidden] {
@@ -2832,6 +2912,15 @@ img {
 
   .library-article {
     padding: 16px;
+  }
+
+  .library-article-image {
+    width: calc(100% + 32px);
+    margin: -16px -16px 14px;
+  }
+
+  .library-tutorial-image-field {
+    grid-template-columns: 1fr;
   }
 
   .stock-section {

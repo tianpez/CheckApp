@@ -1,4 +1,4 @@
-import { randomBytes, pbkdf2Sync, timingSafeEqual, createHash } from 'node:crypto'
+import { randomBytes, randomUUID, pbkdf2Sync, timingSafeEqual, createHash } from 'node:crypto'
 import Database from 'better-sqlite3'
 import {
   INITIAL_ACCOUNTS,
@@ -16,7 +16,11 @@ import {
   updateTaskDetails as changeTaskDetails,
   type CalendarTask,
 } from '../src/calendar.ts'
-import { LIBRARY_ARTICLES, type LibraryArticle } from '../src/library.ts'
+import {
+  LIBRARY_ARTICLES,
+  parseLibraryArticleInput,
+  type LibraryArticle,
+} from '../src/library.ts'
 import { createInitialStock } from '../src/stock-catalog.ts'
 import {
   addStockProduct,
@@ -127,7 +131,8 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       title TEXT NOT NULL,
       summary TEXT NOT NULL,
       keywords_json TEXT NOT NULL,
-      steps_json TEXT NOT NULL
+      steps_json TEXT NOT NULL,
+      image TEXT
     );
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
@@ -143,6 +148,10 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
   const taskColumns = database.prepare('PRAGMA table_info(tasks)').all() as Array<{ name: string }>
   if (!taskColumns.some((column) => column.name === 'completed_by_name')) {
     database.exec('ALTER TABLE tasks ADD COLUMN completed_by_name TEXT')
+  }
+  const libraryColumns = database.prepare('PRAGMA table_info(library_articles)').all() as Array<{ name: string }>
+  if (!libraryColumns.some((column) => column.name === 'image')) {
+    database.exec('ALTER TABLE library_articles ADD COLUMN image TEXT')
   }
 
   database.prepare(
@@ -497,7 +506,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
     },
     getLibrary(): LibraryArticle[] {
       const rows = database.prepare(`
-        SELECT id, category, title, summary, keywords_json, steps_json
+        SELECT id, category, title, summary, keywords_json, steps_json, image
         FROM library_articles ORDER BY category, title COLLATE NOCASE
       `).all() as Array<Record<string, unknown>>
       return rows.map((row) => ({
@@ -507,7 +516,34 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
         summary: String(row.summary),
         keywords: JSON.parse(String(row.keywords_json)) as string[],
         steps: JSON.parse(String(row.steps_json)) as string[],
+        ...(typeof row.image === 'string' && row.image.startsWith('data:image/jpeg;base64,')
+          ? { image: `/api/library/${encodeURIComponent(String(row.id))}/image` }
+          : {}),
       }))
+    },
+    getLibraryImage(id: string): string | undefined {
+      const row = database.prepare('SELECT image FROM library_articles WHERE id = ?')
+        .get(id) as { image: unknown } | undefined
+      return typeof row?.image === 'string' && row.image.startsWith('data:image/jpeg;base64,')
+        ? row.image
+        : undefined
+    },
+    createLibraryArticle(value: unknown): LibraryArticle[] {
+      const article = parseLibraryArticleInput(value)
+      const id = `custom-${randomUUID()}`
+      database.prepare(`
+        INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json, image)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id,
+        article.category,
+        article.title,
+        article.summary,
+        JSON.stringify(article.keywords),
+        JSON.stringify(article.steps),
+        article.image,
+      )
+      return this.getLibrary()
     },
     getUsers(): PublicAccount[] {
       return database.prepare('SELECT username, employee_name AS employeeName, role FROM users ORDER BY username COLLATE NOCASE')
@@ -786,8 +822,8 @@ function insertStock(database: Database.Database, stock: StockProduct[]): void {
 
 function insertLibrary(database: Database.Database, articles: LibraryArticle[]): void {
   const insert = database.prepare(`
-    INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json, image)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   for (const article of articles) {
     insert.run(
@@ -797,6 +833,7 @@ function insertLibrary(database: Database.Database, articles: LibraryArticle[]):
       article.summary,
       JSON.stringify(article.keywords),
       JSON.stringify(article.steps),
+      article.image ?? null,
     )
   }
 }

@@ -18,6 +18,51 @@ export type LibraryArticle = {
   image?: string
 }
 
+export type LibraryArticleInput = Omit<LibraryArticle, 'id'>
+
+export function parseLibraryArticleInput(value: unknown): LibraryArticleInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Los datos del tutorial no son válidos.')
+  }
+  const article = value as Record<string, unknown>
+  if (typeof article.category !== 'string' ||
+    !LIBRARY_CATEGORIES.includes(article.category as LibraryCategory)) {
+    throw new Error('Selecciona una categoría válida.')
+  }
+  if (typeof article.title !== 'string' || !article.title.trim() || article.title.trim().length > 90) {
+    throw new Error('El título debe tener entre 1 y 90 caracteres.')
+  }
+  if (typeof article.summary !== 'string' || !article.summary.trim() || article.summary.trim().length > 280) {
+    throw new Error('El resumen debe tener entre 1 y 280 caracteres.')
+  }
+  if (!Array.isArray(article.keywords) || article.keywords.length < 1 || article.keywords.length > 12 ||
+    article.keywords.some((keyword) =>
+      typeof keyword !== 'string' || !keyword.trim() || keyword.trim().length > 40,
+    )) {
+    throw new Error('Añade entre 1 y 12 palabras clave de hasta 40 caracteres.')
+  }
+  if (!Array.isArray(article.steps) || article.steps.length < 1 || article.steps.length > 30 ||
+    article.steps.some((step) =>
+      typeof step !== 'string' || !step.trim() || step.trim().length > 300,
+    )) {
+    throw new Error('Añade entre 1 y 30 pasos de hasta 300 caracteres.')
+  }
+  if (typeof article.image !== 'string' ||
+    article.image.length > 2_500_000 ||
+    !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(article.image)) {
+    throw new Error('Añade una imagen JPG válida para el tutorial.')
+  }
+
+  return {
+    category: article.category as LibraryCategory,
+    title: article.title.trim(),
+    summary: article.summary.trim(),
+    keywords: [...new Set((article.keywords as string[]).map((keyword) => keyword.trim()))],
+    steps: (article.steps as string[]).map((step) => step.trim()),
+    image: article.image,
+  }
+}
+
 export const LIBRARY_ARTICLES: LibraryArticle[] = [
   {
     id: 'preparar-estacion-sala',

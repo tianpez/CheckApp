@@ -37,13 +37,13 @@ Las repeticiones no completadas se registran como tareas no realizadas. El histo
 
 ## Administración y copias de seguridad
 
-El panel de administración organiza sus funciones en tres pestañas independientes: **Administración de tareas** —consultar, buscar, filtrar, crear, editar las que todavía no se han completado y eliminar tareas—, **Historial** —consultar y filtrar las ejecuciones de los últimos siete días— y **Accesos y empleados**, donde se pueden consultar y crear usuarios, editar su nombre y rol, y eliminar cuentas. Desde la pestaña de tareas también se puede descargar una copia JSON o importar una copia anterior; la importación valida el archivo y pide confirmación porque reemplaza la lista de tareas compartida.
+El panel de administración organiza sus funciones en pestañas independientes: **Administración de tareas** —consultar, buscar, filtrar, crear, editar las que todavía no se han completado y eliminar tareas—, **Historial** —consultar y filtrar las ejecuciones de los últimos siete días—, **Accesos y empleados** —crear usuarios, editar su nombre y rol, y eliminar cuentas— y **Biblioteca**, que permite agregar tutoriales ilustrados compartidos con todo el equipo. Desde la pestaña de tareas también se puede descargar una copia JSON o importar una copia anterior; la importación valida el archivo y pide confirmación porque reemplaza la lista de tareas compartida.
 
 En el panel de usuarios, el administrador asigna un número de empleado y un nombre visible a cada PIN, y puede actualizar el nombre de una cuenta existente. En la tabla de tareas, **Realizada por** muestra el número y el nombre del empleado que completó la checklist; esa atribución se conserva aunque el nombre de la cuenta cambie después. Las tareas completadas antes de habilitar este dato no tienen una instantánea histórica del nombre y muestran el identificador junto con el nombre que tenga asignado actualmente, si está disponible.
 
 ## Biblioteca de servicio
 
-La sección **Biblioteca** reúne guías de sala, montaje de mesas, presentación y reposición del buffet, servicio de bebidas y recetas de cócteles. Se puede buscar por palabras clave en los títulos, categorías, pasos e índices, y filtrar por categoría. La biblioteca inicial incluye procedimientos de referencia; adapta las medidas, las recetas y los procedimientos de seguridad alimentaria a las normas vigentes y al protocolo del establecimiento.
+La sección **Biblioteca** reúne guías de sala, montaje de mesas, presentación y reposición del buffet, servicio de bebidas y recetas de cócteles. Se puede buscar por palabras clave en los títulos, categorías, pasos e índices, y filtrar por categoría. En la pestaña **Biblioteca** del panel de administración se pueden agregar tutoriales con categoría, título, resumen, palabras clave, pasos e imagen obligatoria; las imágenes se optimizan y se guardan en SQLite junto con el contenido. La biblioteca inicial incluye procedimientos de referencia; adapta las medidas, las recetas y los procedimientos de seguridad alimentaria a las normas vigentes y al protocolo del establecimiento.
 
 ## Control de stock
 

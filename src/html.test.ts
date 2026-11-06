@@ -9,16 +9,20 @@ describe('escapeHtml', () => {
   })
 
   describe('admin panel navigation', () => {
-    it('renders separate tabs and corresponding panels for tasks, history and users', () => {
+    it('renders separate tabs and corresponding panels for tasks, history, users and library', () => {
       const shell = renderAppShell()
 
       expect(shell).toContain('role="tablist" aria-label="Secciones de administración"')
       expect(shell).toContain('data-admin-tab="tasks"')
       expect(shell).toContain('data-admin-tab="history"')
       expect(shell).toContain('data-admin-tab="users"')
+      expect(shell).toContain('data-admin-tab="library"')
       expect(shell).toContain('id="admin-panel-tasks" role="tabpanel"')
       expect(shell).toContain('id="admin-panel-history" role="tabpanel"')
       expect(shell).toContain('id="admin-panel-users" role="tabpanel"')
+      expect(shell).toContain('id="admin-panel-library" role="tabpanel"')
+      expect(shell).toContain('id="library-tutorial-form"')
+      expect(shell).toContain('id="library-tutorial-image"')
     })
   })
 

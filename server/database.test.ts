@@ -43,6 +43,44 @@ describe('SQLite-backed application API', () => {
       .toMatchObject({ count: 8 })
   })
 
+  it('adds illustrated library tutorials for admins only', async () => {
+    const article = {
+      category: 'Buffet',
+      title: 'Montaje de estación fría',
+      summary: 'Pasos para organizar la estación fría.',
+      keywords: ['estación fría', 'buffet'],
+      steps: ['Preparar recipientes', 'Revisar temperaturas'],
+      image: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
+    }
+
+    await user.post('/api/library')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ article })
+      .expect(403)
+    await admin.post('/api/library')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ article: { ...article, image: 'not-an-image' } })
+      .expect(400)
+
+    const response = await admin.post('/api/library')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ article })
+      .expect(201)
+    const created = response.body.articles.find((item: { title: string }) =>
+      item.title === article.title)
+
+    expect(response.body.articles).toHaveLength(9)
+    expect(created).toMatchObject({
+      ...article,
+      image: expect.stringMatching(/^\/api\/library\/custom-/),
+      id: expect.stringMatching(/^custom-/),
+    })
+    expect(database.getLibrary()).toContainEqual(created)
+    expect(database.getLibraryImage(created.id)).toBe(article.image)
+    const imageResponse = await admin.get(created.image).expect(200)
+    expect(imageResponse.headers['content-type']).toContain('image/jpeg')
+  })
+
   it('authenticates the demo codes through the API and rejects invalid codes', async () => {
     const loginAgent = request.agent(app)
     await loginAgent.post('/api/auth/login')
@@ -503,6 +541,14 @@ describe('SQLite-backed application API', () => {
           description TEXT NOT NULL,
           checklist_json TEXT NOT NULL
         );
+        CREATE TABLE library_articles (
+          id TEXT PRIMARY KEY,
+          category TEXT NOT NULL,
+          title TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          keywords_json TEXT NOT NULL,
+          steps_json TEXT NOT NULL
+        );
       `)
       legacyDatabase.prepare(
         'INSERT INTO users (username, pin_hash, role) VALUES (?, ?, ?)',
@@ -513,6 +559,10 @@ describe('SQLite-backed application API', () => {
         VALUES (1, '2026-10-20', 'daily', 'Tarea anterior', '08:00', 'Listo', 1, '1042', '',
           '[{"id":1,"text":"Completar","completed":true}]')
       `).run()
+      legacyDatabase.prepare(`
+        INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run('legacy-guide', 'Sala', 'Guía anterior', 'Resumen anterior', '[]', '[]')
       legacyDatabase.close()
 
       const upgradedDatabase = createDatabase(path)
@@ -536,6 +586,12 @@ describe('SQLite-backed application API', () => {
           .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'employee_name' })]))
         expect(upgradedDatabase.raw.prepare('PRAGMA table_info(tasks)').all())
           .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'completed_by_name' })]))
+        expect(upgradedDatabase.getLibrary()).toContainEqual(expect.objectContaining({
+          id: 'legacy-guide',
+          title: 'Guía anterior',
+        }))
+        expect(upgradedDatabase.raw.prepare('PRAGMA table_info(library_articles)').all())
+          .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'image' })]))
       } finally {
         upgradedDatabase.close()
       }

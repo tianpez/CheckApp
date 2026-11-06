@@ -24,6 +24,10 @@ import {
   type Period,
 } from './calendar'
 import {
+  LIBRARY_CATEGORIES,
+  type LibraryArticle,
+} from './library'
+import {
   STOCK_CATEGORIES,
   STOCK_CATEGORY_IMAGE,
   STOCK_STORAGE_KEY,
@@ -57,6 +61,9 @@ if (app) {
   const sessionUser = document.querySelector<HTMLSpanElement>('#session-user')
   const userForm = document.querySelector<HTMLFormElement>('#user-form')
   const userList = document.querySelector<HTMLDivElement>('#user-list')
+  const libraryTutorialForm = document.querySelector<HTMLFormElement>('#library-tutorial-form')
+  const libraryTutorialImage = document.querySelector<HTMLInputElement>('#library-tutorial-image')
+  const libraryTutorialImagePreview = document.querySelector<HTMLDivElement>('#library-tutorial-image-preview')
   let accounts: PublicAccount[] = []
   let currentUser: SessionUser | null = null
 
@@ -104,6 +111,7 @@ if (app) {
   const adminPanelTasks = document.querySelector<HTMLElement>('#admin-panel-tasks')
   const adminPanelHistory = document.querySelector<HTMLElement>('#admin-panel-history')
   const adminPanelUsers = document.querySelector<HTMLElement>('#admin-panel-users')
+  const adminPanelLibrary = document.querySelector<HTMLElement>('#admin-panel-library')
   const historySearch = document.querySelector<HTMLInputElement>('#history-search')
   const historyPeriod = document.querySelector<HTMLSelectElement>('#history-period')
   const adminStatus = document.querySelector<HTMLSelectElement>('#admin-status')
@@ -136,6 +144,7 @@ if (app) {
   let editingTaskId: number | null = null
   let editingStockId: number | null = null
   let pendingStockPhoto: string | undefined
+  let pendingLibraryImage: string | undefined
   let activeView: 'tasks' | 'calendar' | 'library' | 'stock' | 'admin' = 'tasks'
 
   const periodLabel = (period: Period) =>
@@ -168,8 +177,8 @@ if (app) {
 
   const isAdmin = () => currentUser?.role === 'admin'
 
-  const setAdminTab = (tab: 'tasks' | 'history' | 'users') => {
-    if (!isAdmin() || !adminPanelTasks || !adminPanelHistory || !adminPanelUsers) return
+  const setAdminTab = (tab: 'tasks' | 'history' | 'users' | 'library') => {
+    if (!isAdmin() || !adminPanelTasks || !adminPanelHistory || !adminPanelUsers || !adminPanelLibrary) return
     document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]').forEach((button) => {
       const selected = button.dataset.adminTab === tab
       button.classList.toggle('is-active', selected)
@@ -179,6 +188,7 @@ if (app) {
     adminPanelTasks.hidden = tab !== 'tasks'
     adminPanelHistory.hidden = tab !== 'history'
     adminPanelUsers.hidden = tab !== 'users'
+    adminPanelLibrary.hidden = tab !== 'library'
   }
 
   const renderUserList = () => {
@@ -462,6 +472,55 @@ if (app) {
       reader.addEventListener('error', () => reject(new Error('No se pudo leer la foto seleccionada.')), { once: true })
       reader.readAsDataURL(blob)
     })
+  }
+
+  const readLibraryImage = async (file: File): Promise<string> => {
+    if (!file.type.startsWith('image/')) throw new Error('Selecciona un archivo de imagen.')
+    if (file.size > 8 * 1024 * 1024) throw new Error('La imagen original no puede superar 8 MB.')
+
+    const bitmap = await createImageBitmap(file)
+    if (bitmap.width * bitmap.height > 40_000_000) {
+      bitmap.close()
+      throw new Error('La resolución de la imagen es demasiado grande.')
+    }
+    const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) {
+      bitmap.close()
+      throw new Error('No se pudo preparar la imagen en este navegador.')
+    }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => {
+        if (result) resolve(result)
+        else reject(new Error('No se pudo optimizar la imagen seleccionada.'))
+      }, 'image/jpeg', 0.8)
+    })
+    const image = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string') resolve(reader.result)
+        else reject(new Error('No se pudo leer la imagen optimizada.'))
+      }, { once: true })
+      reader.addEventListener('error', () => reject(new Error('No se pudo leer la imagen seleccionada.')), { once: true })
+      reader.readAsDataURL(blob)
+    })
+    if (image.length > 2_500_000) {
+      throw new Error('La imagen optimizada es demasiado grande. Prueba con otra imagen.')
+    }
+    return image
+  }
+
+  const setLibraryImagePreview = (image?: string) => {
+    if (!libraryTutorialImagePreview) return
+    libraryTutorialImagePreview.innerHTML = image
+      ? `<img src="${escapeHtml(image)}" alt="Vista previa del tutorial" />`
+      : '<span>Vista previa de la imagen</span>'
   }
 
   const openStockDialog = (productId?: number) => {
@@ -1145,6 +1204,61 @@ if (app) {
   stockCategory?.addEventListener('change', renderStock)
   stockStatusFilter?.addEventListener('change', renderStock)
 
+  libraryTutorialImage?.addEventListener('change', async () => {
+    const file = libraryTutorialImage.files?.[0]
+    if (!file) return
+    try {
+      pendingLibraryImage = await readLibraryImage(file)
+      setLibraryImagePreview(pendingLibraryImage)
+    } catch (error) {
+      libraryTutorialImage.value = ''
+      showNotification(
+        error instanceof Error ? error.message : 'No se pudo cargar la imagen del tutorial.',
+        'warning',
+      )
+    }
+  })
+
+  libraryTutorialForm?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!isAdmin() || !libraryTutorialForm) {
+      showNotification('Solo un administrador puede agregar tutoriales.', 'warning')
+      return
+    }
+    if (!libraryTutorialForm.reportValidity()) return
+    if (!pendingLibraryImage) {
+      showNotification('Selecciona una imagen para el tutorial.', 'warning')
+      return
+    }
+
+    const formData = new FormData(libraryTutorialForm)
+    const category = LIBRARY_CATEGORIES.find((item) => item === String(formData.get('category')))
+    if (!category) {
+      showNotification('Selecciona una categoría válida.', 'warning')
+      return
+    }
+    const article = {
+      category,
+      title: String(formData.get('title')),
+      summary: String(formData.get('summary')),
+      keywords: [...new Set(String(formData.get('keywords')).split(/[,\r\n]/).map((item) => item.trim()).filter(Boolean))],
+      steps: String(formData.get('steps')).split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+      image: pendingLibraryImage,
+    }
+
+    try {
+      const result = await apiRequest<{ articles: LibraryArticle[] }>('/library', 'POST', { article })
+      libraryData = result.articles
+      libraryTutorialForm.reset()
+      pendingLibraryImage = undefined
+      setLibraryImagePreview()
+      renderLibrary()
+      showNotification('Tutorial agregado a la Biblioteca.')
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'No se pudo guardar el tutorial.', 'warning')
+    }
+  })
+
   stockSection?.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -1370,7 +1484,7 @@ if (app) {
   document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]').forEach((button) => {
     button.addEventListener('click', () => {
       const tab = button.dataset.adminTab
-      if (tab === 'tasks' || tab === 'history' || tab === 'users') setAdminTab(tab)
+      if (tab === 'tasks' || tab === 'history' || tab === 'users' || tab === 'library') setAdminTab(tab)
     })
     button.addEventListener('keydown', (event) => {
       const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-admin-tab]')]
@@ -1389,7 +1503,7 @@ if (app) {
       const nextTab = tabs[nextIndex]
       nextTab?.focus()
       const tab = nextTab?.dataset.adminTab
-      if (tab === 'tasks' || tab === 'history' || tab === 'users') setAdminTab(tab)
+      if (tab === 'tasks' || tab === 'history' || tab === 'users' || tab === 'library') setAdminTab(tab)
     })
   })
 

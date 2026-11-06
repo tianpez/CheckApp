@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { LIBRARY_ARTICLES, searchLibraryArticles } from './library'
+import {
+  LIBRARY_ARTICLES,
+  parseLibraryArticleInput,
+  searchLibraryArticles,
+} from './library'
+
+const tutorialInput = {
+  category: 'Buffet',
+  title: 'Montaje de estación fría',
+  summary: 'Pasos para organizar la estación fría.',
+  keywords: ['estación fría', 'buffet'],
+  steps: ['Preparar recipientes', 'Revisar temperaturas'],
+  image: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
+}
 
 describe('searchLibraryArticles', () => {
   it('returns all articles for an empty query and category', () => {
@@ -31,5 +44,30 @@ describe('searchLibraryArticles', () => {
 
   it('returns no articles when no keyword matches', () => {
     expect(searchLibraryArticles(LIBRARY_ARTICLES, 'palabra inexistente', '')).toEqual([])
+  })
+})
+
+describe('parseLibraryArticleInput', () => {
+  it('normalizes and validates a tutorial with an image', () => {
+    expect(parseLibraryArticleInput({
+      ...tutorialInput,
+      title: '  Montaje de estación fría  ',
+      keywords: ['buffet', ' buffet '],
+      steps: [' Preparar recipientes '],
+    })).toEqual({
+      ...tutorialInput,
+      title: 'Montaje de estación fría',
+      keywords: ['buffet'],
+      steps: ['Preparar recipientes'],
+    })
+  })
+
+  it('rejects tutorials without an image or with invalid fields', () => {
+    expect(() => parseLibraryArticleInput({ ...tutorialInput, image: undefined }))
+      .toThrow('Añade una imagen JPG válida')
+    expect(() => parseLibraryArticleInput({ ...tutorialInput, category: 'Otra' }))
+      .toThrow('Selecciona una categoría válida')
+    expect(() => parseLibraryArticleInput({ ...tutorialInput, steps: [] }))
+      .toThrow('Añade entre 1 y 30 pasos')
   })
 })

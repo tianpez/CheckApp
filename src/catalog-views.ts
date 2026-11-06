@@ -29,6 +29,9 @@ export function renderLibraryView(
   articles.innerHTML = matches.length
     ? matches.map((article) => `
         <article class="library-article">
+          ${article.image
+            ? `<img class="library-article-image" src="${escapeHtml(article.image)}" alt="${escapeHtml(article.title)}" loading="lazy" decoding="async" />`
+            : ''}
           <div class="library-article-heading">
             <span class="library-category">${escapeHtml(article.category)}</span>
             <h3>${escapeHtml(article.title)}</h3>
