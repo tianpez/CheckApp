@@ -2,7 +2,7 @@ import './style.css'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { renderAppShell } from './app-shell'
-import { renderLibraryView, renderStockView } from './catalog-views'
+import { renderLibraryArticleDetail, renderLibraryView, renderStockView } from './catalog-views'
 import { escapeHtml } from './html'
 import {
   ACCOUNTS_STORAGE_KEY,
@@ -25,6 +25,8 @@ import {
 } from './calendar'
 import {
   LIBRARY_CATEGORIES,
+  LIBRARY_MAX_IMAGE_BYTES,
+  LIBRARY_MAX_IMAGES,
   type LibraryArticle,
 } from './library'
 import {
@@ -64,6 +66,8 @@ if (app) {
   const libraryTutorialForm = document.querySelector<HTMLFormElement>('#library-tutorial-form')
   const libraryTutorialImage = document.querySelector<HTMLInputElement>('#library-tutorial-image')
   const libraryTutorialImagePreview = document.querySelector<HTMLDivElement>('#library-tutorial-image-preview')
+  const libraryDetailDialog = document.querySelector<HTMLDialogElement>('#library-detail-dialog')
+  const libraryDetailContent = document.querySelector<HTMLDivElement>('#library-detail-content')
   let accounts: PublicAccount[] = []
   let currentUser: SessionUser | null = null
 
@@ -144,7 +148,8 @@ if (app) {
   let editingTaskId: number | null = null
   let editingStockId: number | null = null
   let pendingStockPhoto: string | undefined
-  let pendingLibraryImage: string | undefined
+  let pendingLibraryImages: string[] = []
+  let libraryImageSelection = 0
   let activeView: 'tasks' | 'calendar' | 'library' | 'stock' | 'admin' = 'tasks'
 
   const periodLabel = (period: Period) =>
@@ -516,11 +521,13 @@ if (app) {
     return image
   }
 
-  const setLibraryImagePreview = (image?: string) => {
+  const setLibraryImagePreview = (images: string[] = []) => {
     if (!libraryTutorialImagePreview) return
-    libraryTutorialImagePreview.innerHTML = image
-      ? `<img src="${escapeHtml(image)}" alt="Vista previa del tutorial" />`
-      : '<span>Vista previa de la imagen</span>'
+    libraryTutorialImagePreview.innerHTML = images.length
+      ? images.map((image, index) =>
+        `<img src="${escapeHtml(image)}" alt="Vista previa ${index + 1} del tutorial" />`,
+      ).join('')
+      : '<span>Vista previa de las imágenes</span>'
   }
 
   const openStockDialog = (productId?: number) => {
@@ -1046,6 +1053,7 @@ if (app) {
     renderPinDigits()
     dialog?.close()
     checklistDialog?.close()
+    libraryDetailDialog?.close()
     stockDialog?.close()
     stockCountDialog?.close()
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1200,18 +1208,56 @@ if (app) {
   document.querySelector<HTMLButtonElement>('[data-show-admin]')?.addEventListener('click', () => setActiveView('admin'))
   librarySearch?.addEventListener('input', renderLibrary)
   libraryCategory?.addEventListener('change', renderLibrary)
+  libraryArticles?.addEventListener('click', (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const button = target.closest<HTMLButtonElement>('[data-open-library-article]')
+    if (!button || !libraryDetailContent || !libraryDetailDialog) return
+    const article = libraryData.find((item) => item.id === button.dataset.openLibraryArticle)
+    if (!article) {
+      showNotification('No se encontró el tutorial seleccionado.', 'warning')
+      return
+    }
+    renderLibraryArticleDetail(article, libraryDetailContent)
+    libraryDetailDialog.showModal()
+  })
+  libraryDetailDialog?.addEventListener('click', (event) => {
+    const target = event.target
+    if (target instanceof Element && target.closest('[data-close-library-detail]')) {
+      libraryDetailDialog.close()
+    }
+  })
   stockSearch?.addEventListener('input', renderStock)
   stockCategory?.addEventListener('change', renderStock)
   stockStatusFilter?.addEventListener('change', renderStock)
 
   libraryTutorialImage?.addEventListener('change', async () => {
-    const file = libraryTutorialImage.files?.[0]
-    if (!file) return
-    try {
-      pendingLibraryImage = await readLibraryImage(file)
-      setLibraryImagePreview(pendingLibraryImage)
-    } catch (error) {
+    const selection = ++libraryImageSelection
+    const files = Array.from(libraryTutorialImage.files ?? [])
+    pendingLibraryImages = []
+    setLibraryImagePreview()
+    if (files.length === 0) return
+    if (files.length > LIBRARY_MAX_IMAGES) {
       libraryTutorialImage.value = ''
+      showNotification(`Selecciona como máximo ${LIBRARY_MAX_IMAGES} imágenes.`, 'warning')
+      return
+    }
+    try {
+      const images: string[] = []
+      for (const file of files) {
+        images.push(await readLibraryImage(file))
+      }
+      if (selection !== libraryImageSelection) return
+      if (images.reduce((total, image) => total + image.length, 0) > LIBRARY_MAX_IMAGE_BYTES) {
+        throw new Error('El tamaño total de las imágenes optimizadas no puede superar 2,5 MB.')
+      }
+      pendingLibraryImages = images
+      setLibraryImagePreview(images)
+    } catch (error) {
+      if (selection !== libraryImageSelection) return
+      libraryTutorialImage.value = ''
+      pendingLibraryImages = []
+      setLibraryImagePreview()
       showNotification(
         error instanceof Error ? error.message : 'No se pudo cargar la imagen del tutorial.',
         'warning',
@@ -1226,8 +1272,8 @@ if (app) {
       return
     }
     if (!libraryTutorialForm.reportValidity()) return
-    if (!pendingLibraryImage) {
-      showNotification('Selecciona una imagen para el tutorial.', 'warning')
+    if (pendingLibraryImages.length === 0) {
+      showNotification('Selecciona al menos una imagen para el tutorial.', 'warning')
       return
     }
 
@@ -1243,14 +1289,14 @@ if (app) {
       summary: String(formData.get('summary')),
       keywords: [...new Set(String(formData.get('keywords')).split(/[,\r\n]/).map((item) => item.trim()).filter(Boolean))],
       steps: String(formData.get('steps')).split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
-      image: pendingLibraryImage,
+      images: pendingLibraryImages,
     }
 
     try {
       const result = await apiRequest<{ articles: LibraryArticle[] }>('/library', 'POST', { article })
       libraryData = result.articles
       libraryTutorialForm.reset()
-      pendingLibraryImage = undefined
+      pendingLibraryImages = []
       setLibraryImagePreview()
       renderLibrary()
       showNotification('Tutorial agregado a la Biblioteca.')

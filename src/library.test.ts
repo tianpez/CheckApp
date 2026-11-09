@@ -11,7 +11,7 @@ const tutorialInput = {
   summary: 'Pasos para organizar la estación fría.',
   keywords: ['estación fría', 'buffet'],
   steps: ['Preparar recipientes', 'Revisar temperaturas'],
-  image: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
+  images: ['data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w=='],
 }
 
 describe('searchLibraryArticles', () => {
@@ -48,26 +48,40 @@ describe('searchLibraryArticles', () => {
 })
 
 describe('parseLibraryArticleInput', () => {
-  it('normalizes and validates a tutorial with an image', () => {
+  it('normalizes and validates a tutorial with multiple images', () => {
+    const secondImage = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w=='
     expect(parseLibraryArticleInput({
       ...tutorialInput,
       title: '  Montaje de estación fría  ',
       keywords: ['buffet', ' buffet '],
       steps: [' Preparar recipientes '],
+      images: [...tutorialInput.images, secondImage],
     })).toEqual({
       ...tutorialInput,
       title: 'Montaje de estación fría',
       keywords: ['buffet'],
       steps: ['Preparar recipientes'],
+      images: [...tutorialInput.images, secondImage],
     })
   })
 
-  it('rejects tutorials without an image or with invalid fields', () => {
-    expect(() => parseLibraryArticleInput({ ...tutorialInput, image: undefined }))
-      .toThrow('Añade una imagen JPG válida')
+  it('rejects tutorials without images or with invalid fields', () => {
+    expect(() => parseLibraryArticleInput({ ...tutorialInput, images: [] }))
+      .toThrow('Añade entre 1 y 8 imágenes JPG válidas')
+    expect(() => parseLibraryArticleInput({ ...tutorialInput, images: Array(9).fill(tutorialInput.images[0]) }))
+      .toThrow('Añade entre 1 y 8 imágenes JPG válidas')
     expect(() => parseLibraryArticleInput({ ...tutorialInput, category: 'Otra' }))
       .toThrow('Selecciona una categoría válida')
     expect(() => parseLibraryArticleInput({ ...tutorialInput, steps: [] }))
       .toThrow('Añade entre 1 y 30 pasos')
+  })
+
+  it('accepts a legacy single image and rejects an oversized image collection', () => {
+    const { images, ...legacyInput } = tutorialInput
+    expect(parseLibraryArticleInput({ ...legacyInput, image: images[0] }).images).toEqual(images)
+    expect(() => parseLibraryArticleInput({
+      ...tutorialInput,
+      images: [`data:image/jpeg;base64,${'a'.repeat(2_500_000)}`],
+    })).toThrow('El tamaño total de las imágenes optimizadas')
   })
 })

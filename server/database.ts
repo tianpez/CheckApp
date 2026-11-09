@@ -132,7 +132,8 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       summary TEXT NOT NULL,
       keywords_json TEXT NOT NULL,
       steps_json TEXT NOT NULL,
-      image TEXT
+      image TEXT,
+      images_json TEXT
     );
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
@@ -152,6 +153,9 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
   const libraryColumns = database.prepare('PRAGMA table_info(library_articles)').all() as Array<{ name: string }>
   if (!libraryColumns.some((column) => column.name === 'image')) {
     database.exec('ALTER TABLE library_articles ADD COLUMN image TEXT')
+  }
+  if (!libraryColumns.some((column) => column.name === 'images_json')) {
+    database.exec('ALTER TABLE library_articles ADD COLUMN images_json TEXT')
   }
 
   database.prepare(
@@ -506,25 +510,50 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
     },
     getLibrary(): LibraryArticle[] {
       const rows = database.prepare(`
-        SELECT id, category, title, summary, keywords_json, steps_json, image
+        SELECT id, category, title, summary, keywords_json, steps_json, image, images_json
         FROM library_articles ORDER BY category, title COLLATE NOCASE
       `).all() as Array<Record<string, unknown>>
-      return rows.map((row) => ({
-        id: String(row.id),
-        category: String(row.category) as LibraryArticle['category'],
-        title: String(row.title),
-        summary: String(row.summary),
-        keywords: JSON.parse(String(row.keywords_json)) as string[],
-        steps: JSON.parse(String(row.steps_json)) as string[],
-        ...(typeof row.image === 'string' && row.image.startsWith('data:image/jpeg;base64,')
-          ? { image: `/api/library/${encodeURIComponent(String(row.id))}/image` }
-          : {}),
-      }))
+      return rows.map((row) => {
+        const id = String(row.id)
+        const storedImages = typeof row.images_json === 'string'
+          ? JSON.parse(row.images_json) as unknown
+          : []
+        const imageData = Array.isArray(storedImages)
+          ? storedImages.filter((image): image is string =>
+            typeof image === 'string' && image.startsWith('data:image/jpeg;base64,'),
+          )
+          : []
+        if (imageData.length === 0 && typeof row.image === 'string' &&
+          row.image.startsWith('data:image/jpeg;base64,')) {
+          imageData.push(row.image)
+        }
+        const images = imageData.map((_, index) =>
+          `/api/library/${encodeURIComponent(id)}/image/${index}`,
+        )
+        return {
+          id,
+          category: String(row.category) as LibraryArticle['category'],
+          title: String(row.title),
+          summary: String(row.summary),
+          keywords: JSON.parse(String(row.keywords_json)) as string[],
+          steps: JSON.parse(String(row.steps_json)) as string[],
+          ...(images.length ? { images, image: images[0] } : {}),
+        }
+      })
     },
-    getLibraryImage(id: string): string | undefined {
-      const row = database.prepare('SELECT image FROM library_articles WHERE id = ?')
-        .get(id) as { image: unknown } | undefined
-      return typeof row?.image === 'string' && row.image.startsWith('data:image/jpeg;base64,')
+    getLibraryImage(id: string, index = 0): string | undefined {
+      const row = database.prepare('SELECT image, images_json FROM library_articles WHERE id = ?')
+        .get(id) as { image: unknown; images_json: unknown } | undefined
+      if (!row) return undefined
+      const storedImages = typeof row.images_json === 'string'
+        ? JSON.parse(row.images_json) as unknown
+        : []
+      if (Array.isArray(storedImages)) {
+        const image = storedImages[index]
+        if (typeof image === 'string' && image.startsWith('data:image/jpeg;base64,')) return image
+      }
+      return index === 0 && typeof row.image === 'string' &&
+        row.image.startsWith('data:image/jpeg;base64,')
         ? row.image
         : undefined
     },
@@ -532,8 +561,8 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       const article = parseLibraryArticleInput(value)
       const id = `custom-${randomUUID()}`
       database.prepare(`
-        INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO library_articles (id, category, title, summary, keywords_json, steps_json, image, images_json)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?)
       `).run(
         id,
         article.category,
@@ -541,7 +570,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
         article.summary,
         JSON.stringify(article.keywords),
         JSON.stringify(article.steps),
-        article.image,
+        JSON.stringify(article.images),
       )
       return this.getLibrary()
     },

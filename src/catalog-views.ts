@@ -1,5 +1,6 @@
 import {
   LIBRARY_CATEGORIES,
+  libraryArticleImages,
   searchLibraryArticles,
   type LibraryArticle,
 } from './library'
@@ -27,25 +28,60 @@ export function renderLibraryView(
   const matches = searchLibraryArticles(data, search.value, selectedCategory)
   resultCount.textContent = `${matches.length} ${matches.length === 1 ? 'guía' : 'guías'}`
   articles.innerHTML = matches.length
-    ? matches.map((article) => `
-        <article class="library-article">
-          ${article.image
-            ? `<img class="library-article-image" src="${escapeHtml(article.image)}" alt="${escapeHtml(article.title)}" loading="lazy" decoding="async" />`
-            : ''}
-          <div class="library-article-heading">
-            <span class="library-category">${escapeHtml(article.category)}</span>
-            <h3>${escapeHtml(article.title)}</h3>
-          </div>
-          <p class="library-article-summary">${escapeHtml(article.summary)}</p>
-          <ol>
-            ${article.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}
-          </ol>
-          <div class="library-keywords" aria-label="Palabras clave">
-            ${article.keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}
-          </div>
-        </article>
-      `).join('')
+    ? matches.map((article) => {
+        const images = libraryArticleImages(article)
+        const imageCount = images.length
+        return `
+          <article class="library-article">
+            <button class="library-article-open" type="button" data-open-library-article="${escapeHtml(article.id)}">
+              ${images[0]
+                ? `<img class="library-article-image" src="${escapeHtml(images[0])}" alt="" loading="lazy" decoding="async" />`
+                : ''}
+              <span class="library-article-heading">
+                <span class="library-category">${escapeHtml(article.category)}</span>
+                <span class="library-article-title">${escapeHtml(article.title)}</span>
+              </span>
+              <span class="library-article-summary">${escapeHtml(article.summary)}</span>
+              <span class="library-article-meta">${article.steps.length} pasos · ${imageCount} ${imageCount === 1 ? 'imagen' : 'imágenes'}</span>
+              <span class="library-article-link">Ver tutorial <span aria-hidden="true">→</span></span>
+            </button>
+          </article>
+        `
+      }).join('')
     : '<p class="library-empty">No se encontraron guías. Prueba otras palabras o cambia la categoría.</p>'
+}
+
+export function renderLibraryArticleDetail(article: LibraryArticle, content: HTMLDivElement): void {
+  const images = libraryArticleImages(article)
+  content.innerHTML = `
+    <div class="library-detail-content">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Tutorial de Biblioteca</p>
+          <h2 id="library-detail-title">${escapeHtml(article.title)}</h2>
+        </div>
+        <button class="dialog-close" type="button" data-close-library-detail aria-label="Cerrar tutorial">×</button>
+      </div>
+      <span class="library-category">${escapeHtml(article.category)}</span>
+      <p class="library-detail-summary">${escapeHtml(article.summary)}</p>
+      ${images.length
+        ? `<div class="library-detail-images" aria-label="Imágenes del tutorial">
+            ${images.map((image, index) => `
+              <img src="${escapeHtml(image)}" alt="${escapeHtml(article.title)} · imagen ${index + 1}" loading="lazy" decoding="async" />
+            `).join('')}
+          </div>`
+        : ''}
+      <section class="library-detail-steps" aria-labelledby="library-detail-steps-title">
+        <h3 id="library-detail-steps-title">Pasos</h3>
+        <ol>${article.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ol>
+      </section>
+      ${article.keywords.length
+        ? `<div class="library-keywords" aria-label="Palabras clave">
+            ${article.keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}
+          </div>`
+        : ''}
+    </div>
+  `
 }
 
 type StockViewElements = {

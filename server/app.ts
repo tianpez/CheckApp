@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express'
 import { dateKey, parseDateKey } from '../src/calendar.ts'
+import { LIBRARY_MAX_IMAGES } from '../src/library.ts'
 import type { AppDatabase, SessionUser } from './database.ts'
 
 const SESSION_COOKIE = 'checkapp_session'
@@ -357,6 +358,26 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
       const id = request.params.id
       if (typeof id !== 'string') throw new HttpError(400, 'El identificador del tutorial no es válido.')
       const image = database.getLibraryImage(id)
+      if (!image) throw new HttpError(404, 'No se encontró la imagen del tutorial.')
+      const base64 = image.slice('data:image/jpeg;base64,'.length)
+      response
+        .type('image/jpeg')
+        .set('Cache-Control', 'private, max-age=3600')
+        .send(Buffer.from(base64, 'base64'))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  app.get('/api/library/:id/image/:index', authenticate, (request, response, next) => {
+    try {
+      const id = request.params.id
+      const index = Number(request.params.index)
+      if (typeof id !== 'string') throw new HttpError(400, 'El identificador del tutorial no es válido.')
+      if (!Number.isInteger(index) || index < 0 || index >= LIBRARY_MAX_IMAGES) {
+        throw new HttpError(400, 'El índice de imagen no es válido.')
+      }
+      const image = database.getLibraryImage(id, index)
       if (!image) throw new HttpError(404, 'No se encontró la imagen del tutorial.')
       const base64 = image.slice('data:image/jpeg;base64,'.length)
       response

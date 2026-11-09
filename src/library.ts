@@ -6,6 +6,9 @@ export const LIBRARY_CATEGORIES = [
   'Cócteles',
 ] as const
 
+export const LIBRARY_MAX_IMAGES = 8
+export const LIBRARY_MAX_IMAGE_BYTES = 2_500_000
+
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number]
 
 export type LibraryArticle = {
@@ -15,10 +18,11 @@ export type LibraryArticle = {
   summary: string
   keywords: string[]
   steps: string[]
+  images?: string[]
   image?: string
 }
 
-export type LibraryArticleInput = Omit<LibraryArticle, 'id'>
+export type LibraryArticleInput = Omit<LibraryArticle, 'id' | 'image'> & { images: string[] }
 
 export function parseLibraryArticleInput(value: unknown): LibraryArticleInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -47,10 +51,20 @@ export function parseLibraryArticleInput(value: unknown): LibraryArticleInput {
     )) {
     throw new Error('Añade entre 1 y 30 pasos de hasta 300 caracteres.')
   }
-  if (typeof article.image !== 'string' ||
-    article.image.length > 2_500_000 ||
-    !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(article.image)) {
-    throw new Error('Añade una imagen JPG válida para el tutorial.')
+  const images = Array.isArray(article.images)
+    ? article.images
+    : typeof article.image === 'string'
+      ? [article.image]
+      : []
+  if (images.length < 1 || images.length > LIBRARY_MAX_IMAGES ||
+    images.some((image) =>
+      typeof image !== 'string' ||
+      !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(image),
+    )) {
+    throw new Error(`Añade entre 1 y ${LIBRARY_MAX_IMAGES} imágenes JPG válidas para el tutorial.`)
+  }
+  if (images.reduce((total, image) => total + image.length, 0) > LIBRARY_MAX_IMAGE_BYTES) {
+    throw new Error('El tamaño total de las imágenes optimizadas no puede superar 2,5 MB.')
   }
 
   return {
@@ -59,8 +73,13 @@ export function parseLibraryArticleInput(value: unknown): LibraryArticleInput {
     summary: article.summary.trim(),
     keywords: [...new Set((article.keywords as string[]).map((keyword) => keyword.trim()))],
     steps: (article.steps as string[]).map((step) => step.trim()),
-    image: article.image,
+    images: images as string[],
   }
+}
+
+export function libraryArticleImages(article: LibraryArticle): string[] {
+  if (article.images?.length) return article.images
+  return article.image ? [article.image] : []
 }
 
 export const LIBRARY_ARTICLES: LibraryArticle[] = [

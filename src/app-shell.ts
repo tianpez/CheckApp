@@ -75,7 +75,7 @@ export function renderAppShell(): string {
               <h2 id="daily-checklist-title">Tareas del día</h2><span class="eyebrow"></span>
             </div>
             <div class="daily-header-actions">
-              <button class="calendar-today-btn" type="button" data-enable-notifications>Activar avisos</button>
+              <button class="calendar-today-btn" type="button" data-enable-notifications hidden>Activar avisos</button>
               <button class="primary-action" type="button" data-add-task data-admin-only>Añadir tarea</button>
             </div>
           </div>
@@ -285,7 +285,7 @@ export function renderAppShell(): string {
               <div>
                 <p class="eyebrow">Contenido de servicio</p>
                 <h3>Agregar tutorial a la Biblioteca</h3>
-                <p class="section-copy">Crea una guía con pasos, palabras clave e imagen. El tutorial aparecerá en Biblioteca para todo el equipo.</p>
+                <p class="section-copy">Crea una guía con pasos, palabras clave y hasta 8 imágenes. El tutorial aparecerá en Biblioteca para todo el equipo.</p>
               </div>
             </div>
             <form id="library-tutorial-form" class="library-tutorial-form">
@@ -316,12 +316,12 @@ export function renderAppShell(): string {
               </label>
               <div class="library-tutorial-image-field">
                 <label>
-                  Imagen del tutorial (JPG, PNG o WebP)
-                  <input id="library-tutorial-image" name="image" type="file" accept="image/*" required />
-                  <span class="form-help">La imagen se optimiza antes de guardarse en la Biblioteca.</span>
+                  Imágenes del tutorial (JPG, PNG o WebP)
+                  <input id="library-tutorial-image" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple required />
+                  <span class="form-help">Selecciona de 1 a 8 imágenes. Se optimizan antes de guardarse; el total no puede superar 2,5 MB.</span>
                 </label>
                 <div id="library-tutorial-image-preview" class="library-tutorial-image-preview" aria-live="polite">
-                  <span>Vista previa de la imagen</span>
+                  <span>Vista previa de las imágenes</span>
                 </div>
               </div>
               <div class="dialog-actions">
@@ -368,6 +368,10 @@ export function renderAppShell(): string {
             <div id="selected-task-list" class="task-list"></div>
           </section>
         </section>
+
+        <dialog id="library-detail-dialog" class="task-dialog library-detail-dialog" aria-labelledby="library-detail-title">
+          <div id="library-detail-content"></div>
+        </dialog>
 
         <dialog id="task-dialog" class="task-dialog">
           <form id="task-form" class="task-form">

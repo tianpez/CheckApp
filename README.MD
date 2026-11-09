@@ -43,7 +43,7 @@ En el panel de usuarios, el administrador asigna un número de empleado y un nom
 
 ## Biblioteca de servicio
 
-La sección **Biblioteca** reúne guías de sala, montaje de mesas, presentación y reposición del buffet, servicio de bebidas y recetas de cócteles. Se puede buscar por palabras clave en los títulos, categorías, pasos e índices, y filtrar por categoría. En la pestaña **Biblioteca** del panel de administración se pueden agregar tutoriales con categoría, título, resumen, palabras clave, pasos e imagen obligatoria; las imágenes se optimizan y se guardan en SQLite junto con el contenido. La biblioteca inicial incluye procedimientos de referencia; adapta las medidas, las recetas y los procedimientos de seguridad alimentaria a las normas vigentes y al protocolo del establecimiento.
+La sección **Biblioteca** reúne guías de sala, montaje de mesas, presentación y reposición del buffet, servicio de bebidas y recetas de cócteles. Se puede buscar por palabras clave en los títulos, categorías, pasos e índices, y filtrar por categoría. Cada guía se abre individualmente para consultar todos sus pasos, palabras clave e imágenes; esta vista está disponible para administradores y usuarios. En la pestaña **Biblioteca** del panel de administración se pueden agregar tutoriales con categoría, título, resumen, palabras clave, pasos y de 1 a 8 imágenes. Las imágenes se optimizan y se guardan en SQLite junto con el contenido, con un límite conjunto de 2,5 MB. La biblioteca inicial incluye procedimientos de referencia; adapta las medidas, las recetas y los procedimientos de seguridad alimentaria a las normas vigentes y al protocolo del establecimiento.
 
 ## Control de stock
 

@@ -44,13 +44,14 @@ describe('SQLite-backed application API', () => {
   })
 
   it('adds illustrated library tutorials for admins only', async () => {
+    const image = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w=='
     const article = {
       category: 'Buffet',
       title: 'Montaje de estación fría',
       summary: 'Pasos para organizar la estación fría.',
       keywords: ['estación fría', 'buffet'],
       steps: ['Preparar recipientes', 'Revisar temperaturas'],
-      image: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
+      images: [image, image],
     }
 
     await user.post('/api/library')
@@ -59,7 +60,7 @@ describe('SQLite-backed application API', () => {
       .expect(403)
     await admin.post('/api/library')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ article: { ...article, image: 'not-an-image' } })
+      .send({ article: { ...article, images: ['not-an-image'] } })
       .expect(400)
 
     const response = await admin.post('/api/library')
@@ -71,14 +72,27 @@ describe('SQLite-backed application API', () => {
 
     expect(response.body.articles).toHaveLength(9)
     expect(created).toMatchObject({
-      ...article,
-      image: expect.stringMatching(/^\/api\/library\/custom-/),
+      category: article.category,
+      title: article.title,
+      summary: article.summary,
+      keywords: article.keywords,
+      steps: article.steps,
+      images: [
+        expect.stringMatching(/^\/api\/library\/custom-.*\/image\/0$/),
+        expect.stringMatching(/^\/api\/library\/custom-.*\/image\/1$/),
+      ],
+      image: expect.stringMatching(/^\/api\/library\/custom-.*\/image\/0$/),
       id: expect.stringMatching(/^custom-/),
     })
     expect(database.getLibrary()).toContainEqual(created)
-    expect(database.getLibraryImage(created.id)).toBe(article.image)
-    const imageResponse = await admin.get(created.image).expect(200)
+    expect(database.getLibraryImage(created.id)).toBe(image)
+    expect(database.getLibraryImage(created.id, 1)).toBe(image)
+    expect(database.getLibraryImage(created.id, 2)).toBeUndefined()
+    const imageResponse = await admin.get(created.images[1]).expect(200)
     expect(imageResponse.headers['content-type']).toContain('image/jpeg')
+    await user.get(created.images[1]).expect(200)
+    await admin.get(`/api/library/${created.id}/image/8`).expect(400)
+    await admin.get(`/api/library/${created.id}/image`).expect(200)
   })
 
   it('authenticates the demo codes through the API and rejects invalid codes', async () => {
@@ -592,6 +606,8 @@ describe('SQLite-backed application API', () => {
         }))
         expect(upgradedDatabase.raw.prepare('PRAGMA table_info(library_articles)').all())
           .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'image' })]))
+        expect(upgradedDatabase.raw.prepare('PRAGMA table_info(library_articles)').all())
+          .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'images_json' })]))
       } finally {
         upgradedDatabase.close()
       }
