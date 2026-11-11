@@ -82,6 +82,7 @@ function recordFailedLogin(address: string): void {
 
 export function createApp(database: AppDatabase, staticDirectory?: string) {
   const app = express()
+  app.set('trust proxy', 'loopback ')
   app.disable('x-powered-by')
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff')
