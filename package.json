@@ -26,6 +26,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
     "@capacitor/android": "^8.6.0",
     "@capacitor/core": "^8.6.0",
     "better-sqlite3": "^13.0.3",

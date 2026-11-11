@@ -23,6 +23,20 @@ function parseCookie(header: string | undefined, name: string): string | undefin
   return entry ? entry.slice(name.length + 1) : undefined
 }
 
+function getSessionToken(request: Request): string | undefined {
+  const authorization = request.get('Authorization')
+
+  // Si existe Authorization, debe utilizarse un Bearer válido.
+  // No se permite recurrir a la cookie si el encabezado es incorrecto.
+  if (authorization !== undefined) {
+    const match = authorization.match(/^Bearer\s+([A-Za-z0-9_-]+)$/i)
+    return match?.[1]
+  }
+
+  // Compatibilidad con la sesión web tradicional.
+  return parseCookie(request.headers.cookie, SESSION_COOKIE)
+}
+
 function hasRequestToken(request: Request): boolean {
   const supplied = request.get('X-CheckApp-Request') ?? ''
   const expected = 'database-write'
@@ -82,8 +96,38 @@ function recordFailedLogin(address: string): void {
 
 export function createApp(database: AppDatabase, staticDirectory?: string) {
   const app = express()
-  app.set('trust proxy', 'loopback ')
+  app.set('trust proxy', 'loopback')
   app.disable('x-powered-by')
+  // CORS exclusivo para la aplicación Android mediante Capacitor.
+const NATIVE_APP_ORIGIN = 'https://localhost'
+
+app.use((request, response, next) => {
+  const origin = request.get('Origin')
+
+  if (origin === NATIVE_APP_ORIGIN) {
+    response.setHeader('Access-Control-Allow-Origin', NATIVE_APP_ORIGIN)
+    response.vary('Origin')
+  }
+
+  // Responder a las solicitudes preliminares de Capacitor.
+  if (request.method === 'OPTIONS' && origin === NATIVE_APP_ORIGIN) {
+    response.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    )
+
+    response.setHeader(
+      'Access-Control-Allow-Headers',
+      'Authorization, Content-Type, X-CheckApp-Request, X-CheckApp-Client',
+    )
+
+    response.setHeader('Access-Control-Max-Age', '86400')
+    response.status(204).end()
+    return
+  }
+
+  next()
+})
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Referrer-Policy', 'same-origin')
@@ -92,16 +136,20 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
   })
   app.use(express.json({ limit: '3mb', strict: true }))
 
-  const authenticate: RequestHandler = (request, response, next) => {
-    const token = parseCookie(request.headers.cookie, SESSION_COOKIE)
-    const user = token ? database.getSessionUser(token) : null
-    if (!user) {
-      next(new HttpError(401, 'Inicia sesión para continuar.'))
-      return
-    }
-    response.locals.user = user
-    next()
+ const authenticate: RequestHandler = (request, response, next) => {
+  const token = getSessionToken(request)
+  const user = token ? database.getSessionUser(token) : null
+
+  if (!user) {
+    next(new HttpError(401, 'Inicia sesión para continuar.'))
+    return
   }
+
+  response.locals.user = user
+  response.locals.sessionToken = token
+
+  next()
+}
 
   app.post('/api/auth/login', (request, response, next) => {
     try {
@@ -115,36 +163,60 @@ export function createApp(database: AppDatabase, staticDirectory?: string) {
         throw new HttpError(401, 'Código incorrecto. Comprueba los seis dígitos.')
       }
       failedLogins.delete(address)
-      const token = database.createSession(user.username, SESSION_LIFETIME_MS)
-      response.cookie(SESSION_COOKIE, token, {
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: request.secure,
-        path: '/',
-        maxAge: SESSION_LIFETIME_MS,
-      })
-      response.json({ user })
+    const token = database.createSession(user.username, SESSION_LIFETIME_MS)
+
+const isNativeClient = request.get('X-CheckApp-Client') === 'native'
+
+if (isNativeClient) {
+  // Android recibe el token para almacenarlo mediante Secure Storage.
+  response.json({ user, token })
+} else {
+  // La web conserva el sistema de cookies HTTP-only.
+  response.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: request.secure,
+    path: '/',
+    maxAge: SESSION_LIFETIME_MS,
+  })
+
+  response.json({ user })
+}
     } catch (error) {
       next(error)
     }
   })
 
-  app.get('/api/auth/session', (request, response) => {
-    const token = parseCookie(request.headers.cookie, SESSION_COOKIE)
-    response.json({ user: token ? database.getSessionUser(token) : null })
-  })
+app.get('/api/auth/session', (request, response) => {
+  const token = getSessionToken(request)
 
-  app.post('/api/auth/logout', authenticate, (request, response, next) => {
-    try {
-      requireRequestToken(request)
-      const token = parseCookie(request.headers.cookie, SESSION_COOKIE)
-      if (token) database.deleteSession(token)
-      response.clearCookie(SESSION_COOKIE, { httpOnly: true, sameSite: 'strict', secure: request.secure, path: '/' })
-      response.status(204).end()
-    } catch (error) {
-      next(error)
-    }
+  response.json({
+    user: token ? database.getSessionUser(token) : null,
   })
+})
+
+ app.post('/api/auth/logout', authenticate, (request, response, next) => {
+  try {
+    requireRequestToken(request)
+
+    const token = response.locals.sessionToken as string | undefined
+
+    if (token) {
+      database.deleteSession(token)
+    }
+
+    response.clearCookie(SESSION_COOKIE, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: request.secure,
+      path: '/',
+    })
+
+    response.status(204).end()
+  } catch (error) {
+    next(error)
+  }
+})
 
   app.get('/api/bootstrap', authenticate, (_request, response) => {
     const user = accountFromResponse(response)
