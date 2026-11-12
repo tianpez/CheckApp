@@ -27,6 +27,18 @@ La migración heredada solo se ofrece una vez por base de datos. Si los datos es
 
 Para hacer una copia de seguridad íntegra, detén el servidor de CheckApp para que SQLite cierre y consolide sus archivos y copia `data/checkapp.sqlite` (o el archivo indicado por `CHECKAPP_DATABASE`) a una ubicación segura. Restaura la copia con el servidor detenido. No copies solo el archivo principal mientras la aplicación esté escribiendo.
 
+### Preparar una importación a MariaDB en HestiaCP
+
+El exportador crea un archivo SQL con el esquema MariaDB (InnoDB, claves foráneas, índices y restricciones) y los registros de SQLite. Primero conserva una copia íntegra de SQLite y úsala como origen:
+
+```powershell
+npm run export:mariadb -- data\checkapp.sqlite.backup-<fecha> data\checkapp-mariadb.sql
+```
+
+El proceso comprueba la integridad y las relaciones de la copia, valida que el esquema contenga las tablas conocidas y adapta las columnas añadidas por versiones recientes de CheckApp. En HestiaCP crea una base MariaDB vacía, selecciónala en phpMyAdmin e importa `data\checkapp-mariadb.sql`. El archivo no crea la base ni el usuario de HestiaCP y no debe importarse sobre tablas con datos existentes.
+
+El SQL contiene hashes de PIN y sesiones; mantenlo privado y no lo subas a una carpeta web pública ni al repositorio. Esta importación prepara la base y sus datos, pero no cambia por sí sola el servidor de CheckApp: la API debe configurarse para usar MariaDB antes de que la web o la APK lean y escriban allí.
+
 ## Supervisión y checklist guiada
 
 Cada tarea incluye una lista de pasos que orienta al equipo durante el servicio. Las tareas nuevas requieren al menos un paso, y la tarea solo se marca como completada al finalizar todos sus pasos. Al completar una tarea, la aplicación muestra un aviso inmediato; si el usuario concede permiso, también envía una notificación del navegador.

@@ -10,7 +10,8 @@
     "build": "tsc && vite build",
     "start": "tsx server/index.ts --production",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "export:mariadb": "tsx scripts/export-sqlite-to-mariadb.ts"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.0",
