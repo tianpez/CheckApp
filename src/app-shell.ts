@@ -481,7 +481,7 @@ export function renderAppShell(): string {
             <div class="stock-photo-field">
               <label for="stock-photo">Foto del producto</label>
               <div id="stock-photo-preview" class="stock-photo-preview" aria-live="polite"></div>
-              <input id="stock-photo" name="photo" type="file" accept="image/*" capture="environment" />
+              <input id="stock-photo" name="photo" type="file" accept="image/*" />
               <span class="form-help">Obligatoria para productos nuevos. El catálogo incluye imágenes ilustrativas predeterminadas.</span>
             </div>
             <div class="dialog-actions">
