@@ -37,8 +37,7 @@ export function renderAppShell(): string {
         </div>
         <p id="login-error" class="login-error" role="alert" hidden></p>
         <button class="primary-action" type="submit">Acceder</button>
-        <p class="demo-account-note">Códigos iniciales: Administrador <strong>123456</strong> · Usuario <strong>000000</strong>.</p>
-        <p class="demo-security-note">Los códigos iniciales son de demostración; cámbialos antes de usar CheckApp con el equipo.</p>
+   
       </form>
     </section>
 
