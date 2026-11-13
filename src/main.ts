@@ -253,7 +253,7 @@ if (app) {
     workspace.hidden = false
     loginScreen.hidden = true
     if (sessionUser) {
-      sessionUser.textContent = `${currentUser.employeeName} · ${currentUser.role === 'admin' ? 'Administrador' : 'Usuario'}`
+      sessionUser.textContent = currentUser.employeeName
     }
     document.querySelectorAll<HTMLElement>('[data-admin-only]').forEach((element) => {
       element.hidden = !isAdmin()
