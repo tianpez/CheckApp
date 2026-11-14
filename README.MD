@@ -1,76 +1,150 @@
-APLICACION PARA GESTION DE TAREAS DIARIAS, SEMANALES, MENSUALES Y EVENTUALES, Y CONTENIDO ESTILO BIBLIOTECA (LIBRERIA) CON CONTENIDO DE COMO MONTAR UNA MESA DE DESAYUNO, COMIDA, CENA
-COMO MONTAR ESTILO BUFFET, COMO SERVIR DIFERENTES BEBIDAS , PLATOS , ETC DEBE DE IR ACOMPAÑADO DE UN TEXTO Y FOTOS EXPLICATIVAS
-ESTA APLICACION DEBE SER UNA COPIA FIEL Y MAS SENCILLA A LA APLICACION
-ANDYAPP.IO DE LA WEB. Realizar esta aplicacion teniendo en cuenta que se va ser utilizada en dispositivos moviles y tambien web
+# CheckApp
 
-## Calendario y desarrollo
+**Gestión de tareas y operaciones para equipos de hostelería**
 
-La vista Calendario, disponible solo para administradores, permite navegar entre meses, seleccionar un día y administrar tareas con fecha, hora y pasos de checklist. Las tareas se pueden configurar como diarias, semanales, mensuales o eventuales. Las diarias se repiten cada día, las semanales cada siete días desde su fecha inicial, las mensuales el mismo día del mes (o el último día si ese día no existe) y las eventuales una sola vez. Cada fecha de repetición tiene su propio avance de checklist. La vista Tareas muestra las tareas del día y su progreso. Los cambios se guardan en la base de datos compartida del servidor y se actualizan en los otros dispositivos conectados.
+**Autor:** Sebastián López
 
-Desde la raíz del repositorio, instala dependencias con `npm install`, inicia la aplicación y su API con `npm run dev` y ejecuta las pruebas con `npm test`. `npm run build` comprueba los tipos y genera la versión de producción.
+CheckApp es una aplicación web adaptable a móviles y escritorio para organizar tareas operativas, consultar procedimientos de servicio y controlar el inventario de un establecimiento. Los datos se centralizan en una API Node.js con SQLite para compartirlos entre los dispositivos conectados.
 
-## Estructura del código
+## Contenido
 
-La interfaz separa la plantilla HTML inicial (`src/app-shell.ts`), el arranque y la coordinación de la aplicación (`src/main.ts`) y la representación de Biblioteca y Stock (`src/catalog-views.ts`). El escape de texto HTML compartido está en `src/html.ts`. La lógica del dominio se mantiene en módulos independientes (`auth`, `calendar`, `library` y `stock`), mientras que `src/api.ts` centraliza las solicitudes HTTP. El servidor organiza la API y el acceso a SQLite en `server/app.ts` y `server/database.ts`. Las pruebas se encuentran junto a los módulos que verifican.
+- [Funciones principales](#funciones-principales)
+- [Requisitos e instalación](#requisitos-e-instalación)
+- [Ejecución](#ejecución)
+- [Datos y copias de seguridad](#datos-y-copias-de-seguridad)
+- [Exportación a MariaDB](#exportación-a-mariadb)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Seguridad](#seguridad)
 
-## Base de datos compartida
+## Funciones principales
 
-La fuente de datos de la aplicación es SQLite en el servidor Node.js, no el almacenamiento del navegador. La base se crea automáticamente en `data/checkapp.sqlite` e incluye usuarios y roles, tareas y checklists, productos de stock e información de la Biblioteca. La aplicación carga esas secciones desde la API y guarda los cambios allí; al volver a primer plano y periódicamente mientras está abierta, actualiza los datos compartidos. Las categorías y unidades son valores controlados por la aplicación; los registros editables se guardan en SQLite.
+### Tareas, calendario y seguimiento
 
-En desarrollo, `npm run dev` inicia la interfaz Vite en el puerto `5174` y la API en el `3001`. Para acceder desde un móvil en la misma red, abre `http://<IP-del-equipo-servidor>:5174`; el equipo que ejecuta CheckApp debe permanecer encendido. Para producción, ejecuta `npm run build` y después `npm start`; la aplicación y la API se sirven en el puerto `3001`. Por defecto el servidor escucha en todas las interfaces de red. `CHECKAPP_DATABASE` permite establecer la ruta del archivo SQLite y `PORT` cambiar el puerto de la aplicación/API. No expongas SQLite directamente a la red.
+- Programa tareas diarias, semanales, mensuales o eventuales.
+- Administra tareas por fecha desde el calendario y consulta las tareas del día en la vista **Tareas**.
+- Guía su ejecución mediante listas de pasos; una tarea se completa cuando se terminan todos.
+- Muestra avisos de tareas pendientes fuera de horario. La vista de administración permite consultar el historial de los últimos siete días.
+- Identifica los turnos de mañana (06:00–12:00), tarde (12:00–18:00) y noche (18:00–24:00) con colores.
+- Atribuye las tareas completadas al número y nombre del empleado.
 
-Al crear una base nueva se cargan las guías de Biblioteca, tareas de ejemplo, el catálogo inicial de stock y las cuentas de demostración (`123456` administrador y `000000` usuario). Los PIN se guardan como hashes en el servidor; el navegador solo recibe nombre y rol. La autenticación usa sesiones HTTP-only y limita intentos de acceso. Cambia los PIN de demostración antes de usarla en un entorno real. SQLite es apropiado para una instancia central en un único equipo; para alojar CheckApp en varias instancias o en internet se debe migrar la API a un servicio con base de datos PostgreSQL y habilitar HTTPS.
+Las tareas y su progreso se guardan en el servidor. Los clientes abiertos sincronizan los cambios periódicamente y al recuperar el foco. La aplicación puede mostrar avisos y, con permiso del usuario, enviar notificaciones del navegador mientras está abierta.
 
-Si el navegador tiene datos de la versión anterior, al iniciar sesión como administrador ofrece importarlos. La operación reemplaza en SQLite únicamente las secciones locales seleccionadas (cuentas, tareas o stock), dentro de una transacción; tras completarse, elimina esas copias locales para evitar datos divergentes. Haz antes una copia JSON de las tareas si quieres conservar un respaldo independiente. La migración requiere una cuenta administradora del servidor.
+### Biblioteca de servicio
 
-La migración heredada solo se ofrece una vez por base de datos. Si los datos están repartidos en varios navegadores, reúne primero en uno los datos que quieras conservar: una importación posterior de una sección sustituiría esa sección compartida.
+La Biblioteca permite buscar tutoriales por texto y categoría, consultar sus pasos e imágenes, y agregar contenido desde el panel de administración. Las categorías disponibles son **Sala**, **Montaje de mesas**, **Buffet**, **Bebidas**, **Alimentos**, **Cócteles**, **Quinta food**, **Rewards** y **Room service**.
 
-Para hacer una copia de seguridad íntegra, detén el servidor de CheckApp para que SQLite cierre y consolide sus archivos y copia `data/checkapp.sqlite` (o el archivo indicado por `CHECKAPP_DATABASE`) a una ubicación segura. Restaura la copia con el servidor detenido. No copies solo el archivo principal mientras la aplicación esté escribiendo.
+Cada tutorial puede incluir de una a ocho imágenes optimizadas. El tamaño total de las imágenes guardadas por tutorial no puede superar 2,5 MB.
 
-### Preparar una importación a MariaDB en HestiaCP
+### Control de stock
 
-El exportador crea un archivo SQL con el esquema MariaDB (InnoDB, claves foráneas, índices y restricciones) y los registros de SQLite. Primero conserva una copia íntegra de SQLite y úsala como origen:
+Disponible para administradores, el inventario incluye las categorías **Vinos**, **Licores**, **Cervezas**, **Destilados**, **Refrescos**, **Alimentos**, **Menaje** y **Otros**, con subcategorías según corresponda. En una instalación nueva se carga un catálogo ilustrado de referencia, con cantidades en cero y pendientes de recuento.
+
+Permite buscar por producto, subcategoría o ubicación; filtrar por categoría y estado; realizar recuentos completos; y registrar entradas y salidas. Los movimientos se habilitan tras el recuento, y una salida no puede dejar existencias negativas. Cada producto puede tener una fotografía propia. Las unidades disponibles son unidades, gramos, litros y cajas.
+
+Al actualizar datos antiguos, la aplicación adapta las categorías previas de bebidas y limpieza y convierte kilos a gramos y mililitros a litros, manteniendo el valor de las cantidades.
+
+### Administración y usuarios
+
+El panel de administración reúne la gestión de tareas, el historial, los accesos de empleados y la Biblioteca. Los administradores pueden crear cuentas, asignar roles y actualizar nombres. Siempre debe quedar al menos un administrador.
+
+## Requisitos e instalación
+
+Se requiere Node.js y npm, además de las dependencias del proyecto.
 
 ```powershell
-npm run export:mariadb -- data\checkapp.sqlite.backup-<fecha> data\checkapp-mariadb.sql
+npm install
 ```
 
-El proceso comprueba la integridad y las relaciones de la copia, valida que el esquema contenga las tablas conocidas y adapta las columnas añadidas por versiones recientes de CheckApp. En HestiaCP crea una base MariaDB vacía, selecciónala en phpMyAdmin e importa `data\checkapp-mariadb.sql`. El archivo no crea la base ni el usuario de HestiaCP y no debe importarse sobre tablas con datos existentes.
+## Ejecución
 
-El SQL contiene hashes de PIN y sesiones; mantenlo privado y no lo subas a una carpeta web pública ni al repositorio. Esta importación prepara la base y sus datos, pero no cambia por sí sola el servidor de CheckApp: la API debe configurarse para usar MariaDB antes de que la web o la APK lean y escriban allí.
+### Desarrollo
 
-## Supervisión y checklist guiada
+```powershell
+npm run dev
+```
 
-Cada tarea incluye una lista de pasos que orienta al equipo durante el servicio. Las tareas nuevas requieren al menos un paso, y la tarea solo se marca como completada al finalizar todos sus pasos. Al completar una tarea, la aplicación muestra un aviso inmediato; si el usuario concede permiso, también envía una notificación del navegador.
+El comando inicia la interfaz de Vite en `http://localhost:5174` y la API en el puerto `3001`. Para acceder desde un móvil conectado a la misma red, abre `http://<IP-del-equipo-servidor>:5174`. El equipo que ejecuta CheckApp debe permanecer encendido.
 
-La vista **Tareas** muestra las tareas del día y una alerta de desviaciones para las tareas pendientes cuya fecha y hora ya pasaron. Las tareas de mañana (06:00–12:00) se identifican en amarillo, las de tarde (12:00–18:00) en naranja y las de noche (18:00–24:00) en azul; la leyenda aparece en Tareas y Calendario. Los avisos y confirmaciones de la interfaz utilizan SweetAlert2; las acciones destructivas y la importación de tareas requieren confirmación. Al completar una tarea, la aplicación también puede enviar una notificación del navegador si el usuario concede permiso. Las notificaciones del sistema no se generan cuando la aplicación está cerrada.
+### Pruebas y compilación
 
-Las repeticiones no completadas se registran como tareas no realizadas. El historial de administración muestra solo las ejecuciones de los últimos siete días, sin mostrar ni permitir reabrir checklists de fechas pasadas; las ejecuciones completadas no se pueden cambiar a no realizadas desde el historial. La lista de desviaciones se actualiza cada minuto mientras la aplicación está abierta; los usuarios pueden abrir la checklist del día para revisar una tarea. Las tareas y sus checklists se guardan en el servidor; los clientes abiertos actualizan los datos compartidos cada 15 segundos y al recuperar el foco.
+```powershell
+npm test
+npm run build
+```
 
-## Administración y copias de seguridad
+Las pruebas usan Vitest. La compilación comprueba los tipos de TypeScript y genera los archivos de producción.
 
-El panel de administración organiza sus funciones en pestañas independientes: **Administración de tareas** —consultar, buscar, filtrar, crear, editar las que todavía no se han completado y eliminar tareas—, **Historial** —consultar y filtrar las ejecuciones de los últimos siete días—, **Accesos y empleados** —crear usuarios, editar su nombre y rol, y eliminar cuentas— y **Biblioteca**, que permite agregar tutoriales ilustrados compartidos con todo el equipo. Desde la pestaña de tareas también se puede descargar una copia JSON o importar una copia anterior; la importación valida el archivo y pide confirmación porque reemplaza la lista de tareas compartida.
+### Producción
 
-En el panel de usuarios, el administrador asigna un número de empleado y un nombre visible a cada PIN, y puede actualizar el nombre de una cuenta existente. En la tabla de tareas, **Realizada por** muestra el número y el nombre del empleado que completó la checklist; esa atribución se conserva aunque el nombre de la cuenta cambie después. Las tareas completadas antes de habilitar este dato no tienen una instantánea histórica del nombre y muestran el identificador junto con el nombre que tenga asignado actualmente, si está disponible.
+```powershell
+npm run build
+npm start
+```
 
-## Biblioteca de servicio
+En producción, la aplicación y la API se sirven en el puerto `3001`. El servidor escucha en todas las interfaces de red por defecto.
 
-La sección **Biblioteca** reúne guías de sala, montaje de mesas, presentación y reposición del buffet, servicio de bebidas y recetas de cócteles. Se puede buscar por palabras clave en los títulos, categorías, pasos e índices, y filtrar por categoría. Cada guía se abre individualmente para consultar todos sus pasos, palabras clave e imágenes; esta vista está disponible para administradores y usuarios. En la pestaña **Biblioteca** del panel de administración se pueden agregar tutoriales con categoría, título, resumen, palabras clave, pasos y de 1 a 8 imágenes. Las imágenes se optimizan y se guardan en SQLite junto con el contenido, con un límite conjunto de 2,5 MB. La biblioteca inicial incluye procedimientos de referencia; adapta las medidas, las recetas y los procedimientos de seguridad alimentaria a las normas vigentes y al protocolo del establecimiento.
+### Acceso inicial
 
-## Control de stock
+Una base nueva incluye cuentas de demostración:
 
-La sección **Control de stock** solo aparece para usuarios con rol de administrador. En una instalación nueva carga una selección representativa —no un ranking estadístico, ya que la oferta cambia según el hotel— de vinos, licores, cervezas, destilados, refrescos, alimentos, menaje y otros productos, con ilustraciones SVG locales. Las cantidades parten de cero y quedan marcadas como pendientes de recuento; los mínimos iniciales son orientativos. El botón **Realizar control de stock** abre un formulario con todos los productos para introducir las cantidades contadas y guardar el recuento completo en una sola operación. La carga inicial solo ocurre cuando todavía no existe una lista guardada y no sustituye inventarios existentes.
+| Código | Rol |
+| --- | --- |
+| `123456` | Administrador |
+| `000000` | Usuario |
 
-El stock permite buscar por nombre, subcategoría o ubicación y filtrar por categoría, stock bajo, agotados o pendientes de recuento. Las subcategorías disponibles dependen de la categoría seleccionada. La lista prioriza la foto, el nombre y la cantidad disponible con su unidad; los datos secundarios, como ubicación y mínimo, aparecen al desplegar «Gestionar». Las unidades disponibles son unidades, gramos, litros y cajas. Al actualizar una base existente, CheckApp adapta las antiguas categorías de bebidas y limpieza y convierte las cantidades de kilos a gramos y de mililitros a litros, conservando su valor. Cada producto admite una foto propia; los nuevos productos requieren foto y los del catálogo conservan su imagen ilustrativa hasta que se suba una. Los movimientos de entrada y salida solo se habilitan después de verificar las existencias, y una salida no puede dejar una cantidad negativa. Los datos y las fotos se guardan en SQLite en el servidor y se comparten entre dispositivos conectados.
+Cambia estos códigos antes de utilizar la aplicación en un entorno real.
 
-La estructura toma como referencia prácticas de inventario de hostelería como mínimos/par levels, recuentos físicos y control de entradas y consumos descritas en la [guía de inventario para restaurantes de Supy](https://supy.io/blog/restaurant-inventory-management-complete-guide), además de la [guía de reducción de desperdicio de MarketMan](https://www.marketman.com/blog/how-to-reduce-food-waste). Esta versión es un registro operativo básico: no calcula mínimos automáticamente, no registra proveedores, caducidades ni auditorías de diferencias, y las cantidades deben contrastarse con el inventario físico y las pautas del establecimiento.
+## Datos y copias de seguridad
 
-## Acceso y gestión de usuarios
+La fuente de datos es SQLite en el servidor, no el almacenamiento del navegador. La base se crea automáticamente en `data/checkapp.sqlite` y almacena cuentas, tareas, inventario y Biblioteca. La variable `CHECKAPP_DATABASE` permite cambiar su ubicación; `PORT` permite configurar el puerto de la aplicación y la API.
 
-Se quitó la portada de presentación. La aplicación abre en una pantalla de acceso y, al entrar, muestra directamente las tareas. El usuario normal puede consultar las tareas y actualizar las checklists; el calendario, la administración de tareas y cuentas quedan disponibles para usuarios con rol de administrador.
+Si existen datos de una versión anterior en el navegador, al iniciar sesión como administrador se ofrece importarlos. Se pueden migrar cuentas, tareas y stock; las secciones seleccionadas reemplazan sus equivalentes en la base compartida dentro de una transacción. La importación se ofrece una sola vez por base de datos. Si los datos están repartidos entre varios navegadores, reúne primero en uno las secciones que quieras conservar.
 
-La aplicación se llama **CheckApp** y el acceso se realiza únicamente con un código numérico único de seis dígitos; no se pide nombre de usuario en la pantalla de inicio de sesión. Los códigos iniciales son `123456` para el administrador y `000000` para el usuario. El administrador puede crear cuentas asignándoles un nombre interno, un código único y un rol; puede cambiar los roles posteriormente. Debe quedar siempre al menos un administrador.
+Para hacer una copia de seguridad íntegra:
 
-Al iniciar sesión, CheckApp carga cuentas, tareas, biblioteca y stock desde el servidor según el rol. Los cambios se conservan en la base de datos compartida al cerrar y abrir la aplicación desde otro dispositivo de la red.
+1. Detén el servidor para que SQLite cierre y consolide sus archivos.
+2. Copia `data/checkapp.sqlite` —o el archivo indicado por `CHECKAPP_DATABASE`— a una ubicación segura.
+3. Restaura la copia con el servidor detenido.
 
-**Importante:** la base central permite compartir los datos, pero el PIN inicial es de demostración y no debe mantenerse en uso. No expongas la aplicación por una red pública sin HTTPS, configuración segura de hosting y cambio de las credenciales iniciales.
+No copies únicamente el archivo principal mientras la base de datos esté en uso.
+
+## Exportación a MariaDB
+
+El exportador prepara un archivo SQL con el esquema y los datos de SQLite para importarlo en una base MariaDB vacía. Conserva primero una copia íntegra de SQLite y úsala como origen:
+
+```powershell
+npm run export:mariadb -- data\checkapp.sqlite.backup-20261114T120000Z data\checkapp-mariadb.sql
+```
+
+Sustituye el nombre de ejemplo por el de tu copia. El proceso comprueba la integridad de la base y las relaciones entre sus tablas. En HestiaCP, crea una base MariaDB vacía, selecciónala en phpMyAdmin e importa el archivo generado. El SQL no crea la base ni el usuario, y no debe importarse sobre tablas que ya contengan datos.
+
+La exportación prepara el esquema y los registros, pero no reconfigura el servidor de CheckApp para utilizar MariaDB. El archivo incluye hashes de códigos de acceso y datos de sesión: mantenlo privado y fuera de carpetas públicas y del repositorio.
+
+## Estructura del proyecto
+
+```text
+src/
+  app-shell.ts       Plantilla HTML de la aplicación
+  main.ts            Inicio y coordinación de la interfaz
+  catalog-views.ts   Representación de Biblioteca y Stock
+  api.ts             Solicitudes HTTP al servidor
+  auth.ts            Autenticación y usuarios
+  calendar.ts        Tareas, calendario y checklists
+  library.ts         Biblioteca y validación de tutoriales
+  library-options.ts Categorías de Biblioteca
+  stock.ts           Inventario y operaciones de stock
+  stock-options.ts   Categorías, subcategorías y unidades de stock
+server/
+  app.ts             Rutas y middleware de la API
+  database.ts        Persistencia SQLite
+```
+
+Las pruebas se encuentran junto a los módulos que verifican. La interfaz utiliza `src/html.ts` para escapar el contenido que presenta.
+
+## Seguridad
+
+- Los códigos de acceso se guardan como hashes en el servidor; el navegador recibe únicamente los datos públicos de la cuenta.
+- La autenticación utiliza sesiones HTTP-only y limita los intentos de acceso.
+- No expongas SQLite directamente a la red.
+- No publiques la aplicación en una red pública sin HTTPS y una configuración segura del servidor.
+- SQLite está pensado para una instancia central en un solo equipo. Para varias instancias o un despliegue distribuido, migra la API a una base de datos de servidor, como PostgreSQL, y configura HTTPS.

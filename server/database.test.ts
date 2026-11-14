@@ -99,7 +99,7 @@ describe('SQLite-backed application API', () => {
   it('adds illustrated library tutorials for admins only', async () => {
     const image = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w=='
     const article = {
-      category: 'Buffet',
+      category: 'Quinta food',
       title: 'Montaje de estación fría',
       summary: 'Pasos para organizar la estación fría.',
       keywords: ['estación fría', 'buffet'],

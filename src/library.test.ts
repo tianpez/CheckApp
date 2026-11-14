@@ -4,6 +4,7 @@ import {
   parseLibraryArticleInput,
   searchLibraryArticles,
 } from './library'
+import { LIBRARY_CATEGORIES } from './library-options'
 
 const tutorialInput = {
   category: 'Buffet',
@@ -15,6 +16,23 @@ const tutorialInput = {
 }
 
 describe('searchLibraryArticles', () => {
+  it('supports all library categories in filters and tutorial creation', () => {
+    expect(LIBRARY_CATEGORIES).toEqual([
+      'Sala',
+      'Montaje de mesas',
+      'Buffet',
+      'Bebidas',
+      'Alimentos',
+      'Cócteles',
+      'Quinta food',
+      'Rewards',
+      'Room service',
+    ])
+    for (const category of ['Alimentos', 'Quinta food', 'Rewards', 'Room service'] as const) {
+      expect(parseLibraryArticleInput({ ...tutorialInput, category }).category).toBe(category)
+    }
+  })
+
   it('returns all articles for an empty query and category', () => {
     expect(searchLibraryArticles(LIBRARY_ARTICLES, '', '')).toHaveLength(LIBRARY_ARTICLES.length)
   })

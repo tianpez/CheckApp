@@ -24,11 +24,11 @@ import {
   type Period,
 } from './calendar'
 import {
-  LIBRARY_CATEGORIES,
   LIBRARY_MAX_IMAGE_BYTES,
   LIBRARY_MAX_IMAGES,
   type LibraryArticle,
 } from './library'
+import { LIBRARY_CATEGORIES } from './library-options'
 import {
   STOCK_STORAGE_KEY,
   parseStockJson,
@@ -657,7 +657,7 @@ if (app) {
             <h2>${escapeHtml(task.title)}</h2>
             <p class="checklist-description">${escapeHtml(task.description)}</p>
           </div>
-          <button class="dialog-close" type="button" data-close-checklist aria-label="Cerrar">×</button>
+          
         </div>
         <div class="checklist-progress-copy">
           <span>${completedSteps} de ${task.checklist.length} pasos</span>

@@ -1,5 +1,5 @@
 
-import { LIBRARY_CATEGORIES } from './library'
+import { LIBRARY_CATEGORIES } from './library-options'
 import {
   STOCK_CATEGORIES,
   STOCK_SUB_CATEGORIES,

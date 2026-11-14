@@ -1,9 +1,9 @@
 import {
-  LIBRARY_CATEGORIES,
   libraryArticleImages,
   searchLibraryArticles,
   type LibraryArticle,
 } from './library'
+import { LIBRARY_CATEGORIES } from './library-options'
 import {
   STOCK_CATEGORIES,
   STOCK_UNIT_LABELS,

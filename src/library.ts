@@ -1,15 +1,7 @@
-export const LIBRARY_CATEGORIES = [
-  'Sala',
-  'Montaje de mesas',
-  'Buffet',
-  'Bebidas',
-  'Cócteles',
-] as const
+import { LIBRARY_CATEGORIES, type LibraryCategory } from './library-options'
 
 export const LIBRARY_MAX_IMAGES = 8
 export const LIBRARY_MAX_IMAGE_BYTES = 2_500_000
-
-export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number]
 
 export type LibraryArticle = {
   id: string
