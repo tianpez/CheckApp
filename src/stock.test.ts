@@ -8,22 +8,27 @@ import {
   parseStockJson,
   removeStockProduct,
   saveStock,
-  STOCK_CATEGORY_IMAGE,
-  STOCK_UNIT_LABELS,
   updateStockProduct,
   type StockProduct,
   type StockProductInput,
 } from './stock'
+import {
+  STOCK_CATEGORIES,
+  STOCK_CATEGORY_IMAGE,
+  STOCK_SUB_CATEGORIES,
+  STOCK_UNIT_LABELS,
+} from './stock-options'
 import { createInitialStock } from './stock-catalog'
 
 const sampleProduct: StockProductInput = {
   name: 'Café en grano',
-  category: 'Bebidas',
+  category: 'Refrescos',
+  subCategory: '',
   quantity: 2,
-  unit: 'kg',
+  unit: 'g',
   minimumQuantity: 3,
   location: 'Almacén seco',
-  defaultImage: STOCK_CATEGORY_IMAGE.Bebidas,
+  defaultImage: STOCK_CATEGORY_IMAGE.Refrescos,
   counted: true,
 }
 
@@ -41,8 +46,9 @@ const sampleStock: StockProduct[] = [
   },
   {
     ...sampleProduct,
-    name: 'Detergente',
-    category: 'Limpieza',
+    name: 'Vajilla',
+    category: 'Menaje',
+    subCategory: 'Vajilla',
     quantity: 8,
     minimumQuantity: 2,
     unit: 'L',
@@ -56,11 +62,14 @@ describe('stock persistence and validation', () => {
   it('provides readable labels for inventory units', () => {
     expect([
       STOCK_UNIT_LABELS['ud.'],
-      STOCK_UNIT_LABELS.kg,
       STOCK_UNIT_LABELS.g,
       STOCK_UNIT_LABELS.L,
       STOCK_UNIT_LABELS.cajas,
-    ]).toEqual(['unidades', 'kilos', 'gramos', 'litros', 'cajas'])
+    ]).toEqual(['unidades', 'gramos', 'litros', 'cajas'])
+    expect(STOCK_CATEGORIES).toEqual([
+      'Vinos', 'Licores', 'Cervezas', 'Destilados', 'Refrescos', 'Alimentos', 'Menaje', 'Otros',
+    ])
+    expect(STOCK_SUB_CATEGORIES.Vinos).toEqual(['Tinto', 'Blanco', 'Rosado', 'Espumoso'])
   })
 
   it('loads an empty stock list by default and persists changes', () => {
@@ -84,11 +93,17 @@ describe('stock persistence and validation', () => {
     ]))).toThrow('identificadores')
     expect(() => addStockProduct([], { ...sampleProduct, quantity: -1 })).toThrow('igual o mayor que cero')
     expect(() => addStockProduct([], { ...sampleProduct, name: '  ' })).toThrow('entre 1 y 80')
+    expect(() => addStockProduct([], {
+      ...sampleProduct,
+      category: 'Vinos',
+      subCategory: 'Rubia',
+    })).toThrow('subcategoría')
   })
 
   it('creates a representative hotel restaurant catalog with uncounted zero quantities', () => {
     const initialStock = createInitialStock(new Date('2026-10-20T08:00:00.000Z'))
-    expect(initialStock.length).toBeGreaterThanOrEqual(20)
+    expect(initialStock.length).toBeGreaterThanOrEqual(30)
+    expect(new Set(initialStock.map((product) => product.category))).toEqual(new Set(STOCK_CATEGORIES))
     expect(initialStock[0]).toMatchObject({
       id: 1,
       name: 'Pan blanco',
@@ -103,13 +118,23 @@ describe('stock persistence and validation', () => {
   it('fills new stock fields when loading a product saved by an older version', () => {
     const legacyProduct = {
       ...sampleProduct,
+      category: 'Bebidas',
+      unit: 'kg',
+      quantity: 2,
+      minimumQuantity: 3,
+      subCategory: undefined,
       id: 1,
       updatedAt: '2026-10-20T08:00:00.000Z',
     }
     const parsed = parseStockJson(JSON.stringify([legacyProduct]))
     expect(parsed[0]).toMatchObject({
       counted: true,
-      defaultImage: STOCK_CATEGORY_IMAGE.Bebidas,
+      category: 'Refrescos',
+      subCategory: '',
+      unit: 'g',
+      quantity: 2000,
+      minimumQuantity: 3000,
+      defaultImage: STOCK_CATEGORY_IMAGE.Refrescos,
     })
   })
 
@@ -148,9 +173,9 @@ describe('stock operations', () => {
 
   it('filters by category, stock status, location and accent-insensitive search', () => {
     expect(filterStockProducts(sampleStock, 'camara', '', 'all').map((product) => product.id)).toEqual([2])
-    expect(filterStockProducts(sampleStock, '', 'Bebidas', 'low').map((product) => product.id)).toEqual([1])
+    expect(filterStockProducts(sampleStock, '', 'Refrescos', 'low').map((product) => product.id)).toEqual([1])
     expect(filterStockProducts(sampleStock, '', '', 'out').map((product) => product.id)).toEqual([2])
-    expect(filterStockProducts(sampleStock, 'limpieza', '', 'all').map((product) => product.id)).toEqual([3])
+    expect(filterStockProducts(sampleStock, 'vajilla', '', 'all').map((product) => product.id)).toEqual([3])
   })
 
   it('removes a product and reports missing identifiers', () => {

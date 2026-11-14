@@ -1,40 +1,21 @@
+import {
+  STOCK_CATEGORIES,
+  STOCK_CATEGORY_IMAGE,
+  STOCK_SUB_CATEGORIES,
+  STOCK_UNITS,
+  type StockCategory,
+  type StockUnit,
+} from './stock-options'
+
 export const STOCK_STORAGE_KEY = 'checkapp-stock'
 
-export const STOCK_CATEGORY_IMAGE: Record<StockCategory, string> = {
-  Alimentos: 'stock-images/food.svg',
-  Bebidas: 'stock-images/drinks.svg',
-  Limpieza: 'stock-images/cleaning.svg',
-  Menaje: 'stock-images/tableware.svg',
-  Otros: 'stock-images/other.svg',
-}
-
-export const STOCK_CATEGORIES = [
-  'Alimentos',
-  'Bebidas',
-  'Limpieza',
-  'Menaje',
-  'Otros',
-] as const
-
-export const STOCK_UNITS = ['ud.', 'kg', 'g', 'L', 'ml', 'cajas'] as const
-
-export const STOCK_UNIT_LABELS: Record<StockUnit, string> = {
-  'ud.': 'unidades',
-  kg: 'kilos',
-  g: 'gramos',
-  L: 'litros',
-  ml: 'mililitros',
-  cajas: 'cajas',
-}
-
-export type StockCategory = (typeof STOCK_CATEGORIES)[number]
-export type StockUnit = (typeof STOCK_UNITS)[number]
 export type StockStatusFilter = 'all' | 'low' | 'out' | 'uncounted'
 
 export type StockProduct = {
   id: number
   name: string
   category: StockCategory
+  subCategory: string
   quantity: number
   unit: StockUnit
   minimumQuantity: number
@@ -47,8 +28,8 @@ export type StockProduct = {
 
 export type StockProductInput = Omit<StockProduct, 'id' | 'updatedAt'>
 
-type StoredStockProduct = Omit<StockProduct, 'defaultImage' | 'counted'> &
-  Partial<Pick<StockProduct, 'defaultImage' | 'counted'>>
+type StoredStockProduct = Omit<StockProduct, 'defaultImage' | 'counted' | 'subCategory'> &
+  Partial<Pick<StockProduct, 'defaultImage' | 'counted' | 'subCategory'>>
 
 function validateStockInput(
   input: Omit<StockProductInput, 'defaultImage' | 'counted'> &
@@ -56,8 +37,12 @@ function validateStockInput(
 ): StockProductInput {
   const name = input.name.trim()
   const location = input.location.trim()
+  const subCategory = input.subCategory?.trim() ?? ''
   if (!name || name.length > 80) throw new Error('El nombre debe tener entre 1 y 80 caracteres.')
   if (!STOCK_CATEGORIES.includes(input.category)) throw new Error('La categoría seleccionada no es válida.')
+  if (subCategory && !STOCK_SUB_CATEGORIES[input.category].includes(subCategory)) {
+    throw new Error('La subcategoría seleccionada no es válida para esta categoría.')
+  }
   if (!STOCK_UNITS.includes(input.unit)) throw new Error('La unidad seleccionada no es válida.')
   if (!Number.isFinite(input.quantity) || input.quantity < 0) {
     throw new Error('La cantidad debe ser un número igual o mayor que cero.')
@@ -77,6 +62,7 @@ function validateStockInput(
   return {
     name,
     category: input.category,
+    subCategory,
     quantity: input.quantity,
     unit: input.unit,
     minimumQuantity: input.minimumQuantity,
@@ -95,6 +81,10 @@ function isStockProduct(value: unknown): value is StoredStockProduct {
     (product.id ?? 0) > 0 &&
     typeof product.name === 'string' &&
     STOCK_CATEGORIES.includes(product.category as StockCategory) &&
+    (product.subCategory === undefined ||
+      (typeof product.subCategory === 'string' &&
+        (product.subCategory === '' ||
+          STOCK_SUB_CATEGORIES[product.category as StockCategory].includes(product.subCategory)))) &&
     typeof product.quantity === 'number' &&
     typeof product.unit === 'string' &&
     STOCK_UNITS.includes(product.unit as StockUnit) &&
@@ -114,12 +104,38 @@ function isStockProduct(value: unknown): value is StoredStockProduct {
 
 export function parseStockJson(json: string): StockProduct[] {
   const parsed: unknown = JSON.parse(json)
-  if (!Array.isArray(parsed) || !parsed.every(isStockProduct)) {
+  if (!Array.isArray(parsed)) {
     throw new Error('Los datos del inventario no tienen un formato válido.')
   }
-  if (parsed.some((product) => {
+  const normalized = parsed.map((value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+    const product = value as Record<string, unknown>
+    const category = product.category === 'Bebidas'
+      ? 'Refrescos'
+      : product.category === 'Limpieza'
+        ? 'Otros'
+        : product.category
+    const legacyUnit = product.unit === 'kg' || product.unit === 'ml'
+    const factor = product.unit === 'kg' ? 1000 : product.unit === 'ml' ? 0.001 : 1
+    return {
+      ...product,
+      category,
+      subCategory: product.subCategory ?? '',
+      unit: product.unit === 'kg' ? 'g' : product.unit === 'ml' ? 'L' : product.unit,
+      quantity: legacyUnit && typeof product.quantity === 'number'
+        ? product.quantity * factor
+        : product.quantity,
+      minimumQuantity: legacyUnit && typeof product.minimumQuantity === 'number'
+        ? product.minimumQuantity * factor
+        : product.minimumQuantity,
+    }
+  })
+  if (!normalized.every(isStockProduct)) {
+    throw new Error('Los datos del inventario no tienen un formato válido.')
+  }
+  if (normalized.some((product) => {
     try {
-      validateStockInput(product)
+      validateStockInput({ ...product, subCategory: product.subCategory ?? '' })
       return false
     } catch {
       return true
@@ -127,12 +143,13 @@ export function parseStockJson(json: string): StockProduct[] {
   })) {
     throw new Error('Los datos del inventario contienen cantidades o campos no válidos.')
   }
-  const ids = parsed.map((product) => product.id)
+  const ids = normalized.map((product) => product.id)
   if (new Set(ids).size !== ids.length) {
     throw new Error('El inventario contiene identificadores de producto duplicados.')
   }
-  return parsed.map((product) => ({
+  return normalized.map((product) => ({
     ...product,
+    subCategory: product.subCategory ?? '',
     defaultImage: product.defaultImage ?? STOCK_CATEGORY_IMAGE[product.category],
     counted: product.counted ?? true,
   }))
@@ -208,7 +225,9 @@ export function filterStockProducts(
     if (status === 'low' &&
       (!product.counted || product.quantity === 0 || product.quantity > product.minimumQuantity)) return false
     if (terms.length === 0) return true
-    const searchableText = normalizeSearchText(`${product.name} ${product.category} ${product.location} ${product.unit}`)
+    const searchableText = normalizeSearchText(
+      `${product.name} ${product.category} ${product.subCategory} ${product.location} ${product.unit}`,
+    )
     return terms.every((term) => searchableText.includes(term))
   })
 }

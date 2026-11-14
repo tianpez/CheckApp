@@ -30,16 +30,19 @@ import {
   type LibraryArticle,
 } from './library'
 import {
-  STOCK_CATEGORIES,
-  STOCK_CATEGORY_IMAGE,
   STOCK_STORAGE_KEY,
-  STOCK_UNIT_LABELS,
-  STOCK_UNITS,
   parseStockJson,
-  type StockCategory,
   type StockProduct,
   type StockProductInput,
 } from './stock'
+import {
+  STOCK_CATEGORIES,
+  STOCK_CATEGORY_IMAGE,
+  STOCK_SUB_CATEGORIES,
+  STOCK_UNIT_LABELS,
+  STOCK_UNITS,
+  type StockCategory,
+} from './stock-options'
 import { apiRequest, type BootstrapData, type PublicAccount, type SessionUser } from './api'
 
 type TaskHistoryEntry = Omit<CalendarTask, 'checklist'>
@@ -337,7 +340,7 @@ if (app) {
       <label class="stock-count-row">
         <span class="stock-count-product">
           <strong>${escapeHtml(product.name)}</strong>
-          <small>${escapeHtml(product.category)} · ${escapeHtml(product.location || 'Sin ubicación')} · Actual: ${quantity.format(product.quantity)} ${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</small>
+          <small>${escapeHtml(product.category)}${product.subCategory ? ` · ${escapeHtml(product.subCategory)}` : ''} · ${escapeHtml(product.location || 'Sin ubicación')} · Actual: ${quantity.format(product.quantity)} ${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</small>
         </span>
         <span class="stock-count-quantity">
           <input data-stock-count="${product.id}" type="number" min="0" step="0.001" value="${product.quantity}" aria-label="Cantidad contada de ${escapeHtml(product.name)}" required />
@@ -439,6 +442,20 @@ if (app) {
     stockPhotoPreview.innerHTML = photo
       ? `<img src="${escapeHtml(photo)}" alt="Vista previa de la foto del producto" />`
       : `<img src="/${escapeHtml(defaultImage)}" alt="" /><small>Imagen ilustrativa</small>`
+  }
+
+  const setStockSubCategoryOptions = (category: StockCategory, selected = '') => {
+    const field = document.querySelector<HTMLLabelElement>('#stock-subcategory-field')
+    const select = stockForm?.elements.namedItem('subCategory')
+    if (!field || !(select instanceof HTMLSelectElement)) return
+
+    const subCategories = STOCK_SUB_CATEGORIES[category]
+    select.replaceChildren(new Option('Selecciona una subcategoría', ''))
+    subCategories.forEach((subCategory) => select.add(new Option(subCategory, subCategory)))
+    field.hidden = subCategories.length === 0
+    select.disabled = subCategories.length === 0
+    select.required = subCategories.length > 0
+    select.value = subCategories.includes(selected) ? selected : ''
   }
 
   const readStockPhoto = async (file: File): Promise<string> => {
@@ -547,16 +564,20 @@ if (app) {
     }
     pendingStockPhoto = product?.photo
     if (stockPhotoInput) stockPhotoInput.required = !product
+    const category = stockForm.elements.namedItem('category')
+    if (category instanceof HTMLSelectElement) {
+      const selectedCategory = product?.category ?? STOCK_CATEGORIES[0]
+      category.value = selectedCategory
+      setStockSubCategoryOptions(selectedCategory, product?.subCategory)
+    }
     if (product) {
       const name = stockForm.elements.namedItem('name')
-      const category = stockForm.elements.namedItem('category')
       const location = stockForm.elements.namedItem('location')
       const quantity = stockForm.elements.namedItem('quantity')
       const unit = stockForm.elements.namedItem('unit')
       const minimumQuantity = stockForm.elements.namedItem('minimumQuantity')
       const counted = stockForm.elements.namedItem('counted')
       if (name instanceof HTMLInputElement) name.value = product.name
-      if (category instanceof HTMLSelectElement) category.value = product.category
       if (location instanceof HTMLInputElement) location.value = product.location
       if (quantity instanceof HTMLInputElement) quantity.value = String(product.quantity)
       if (unit instanceof HTMLSelectElement) unit.value = product.unit
@@ -1374,9 +1395,10 @@ if (app) {
 
   stockForm?.addEventListener('change', (event) => {
     const target = event.target
-    if (target instanceof HTMLSelectElement && target.name === 'category' && !pendingStockPhoto) {
+    if (target instanceof HTMLSelectElement && target.name === 'category') {
       const category = STOCK_CATEGORIES.find((item) => item === target.value) ?? 'Otros'
-      setStockPhotoPreview(undefined, category)
+      setStockSubCategoryOptions(category)
+      if (!pendingStockPhoto) setStockPhotoPreview(undefined, category)
     }
   })
 
@@ -1431,6 +1453,7 @@ if (app) {
     const product: StockProductInput = {
       name: String(formData.get('name')),
       category,
+      subCategory: String(formData.get('subCategory') ?? ''),
       quantity: Number(formData.get('quantity')),
       unit,
       minimumQuantity: Number(formData.get('minimumQuantity')),

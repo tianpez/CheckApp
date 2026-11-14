@@ -2,9 +2,10 @@
 import { LIBRARY_CATEGORIES } from './library'
 import {
   STOCK_CATEGORIES,
+  STOCK_SUB_CATEGORIES,
   STOCK_UNIT_LABELS,
   STOCK_UNITS,
-} from './stock'
+} from './stock-options'
 
 export function renderAppShell(): string {
   const timeBandLegend = `
@@ -148,7 +149,7 @@ export function renderAppShell(): string {
           <div class="stock-filters" aria-label="Buscar y filtrar productos">
             <label>
               Buscar producto o ubicación
-              <input id="stock-search" type="search" placeholder="Ej.: café, bebidas, cámara fría" autocomplete="off" />
+              <input id="stock-search" type="search" placeholder="Ej.: vino, cámara fría" autocomplete="off" />
             </label>
             <label>
               Categoría
@@ -451,6 +452,13 @@ export function renderAppShell(): string {
                 Categoría
                 <select name="category" required>
                   ${STOCK_CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join('')}
+                </select>
+              </label>
+              <label id="stock-subcategory-field">
+                Subcategoría
+                <select name="subCategory" required>
+                  <option value="">Selecciona una subcategoría</option>
+                  ${STOCK_SUB_CATEGORIES.Vinos.map((subCategory) => `<option value="${subCategory}">${subCategory}</option>`).join('')}
                 </select>
               </label>
               <label>
