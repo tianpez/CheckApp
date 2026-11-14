@@ -8,7 +8,8 @@ import { createApp } from './app'
 import { createDatabase, hashPin } from './database'
 import { INITIAL_ACCOUNTS } from '../src/auth'
 import { createChecklistSteps, dateKey } from '../src/calendar'
-import { STOCK_CATEGORY_IMAGE, type StockProductInput } from '../src/stock'
+import type { StockProductInput } from '../src/stock'
+import { STOCK_CATEGORY_IMAGE } from '../src/stock-options'
 
 describe('SQLite-backed application API', () => {
   const database = createDatabase(':memory:', new Date('2026-10-20T08:00:00.000Z'))
@@ -32,7 +33,9 @@ describe('SQLite-backed application API', () => {
   it('seeds tasks, hotel stock and library records in SQLite', async () => {
     const response = await admin.get('/api/bootstrap').expect(200)
     expect(response.body.tasks).toHaveLength(6)
-    expect(response.body.stock).toHaveLength(25)
+    expect(response.body.stock).toHaveLength(31)
+    expect(response.body.stock.map((product: { category: string }) => product.category))
+      .toEqual(expect.arrayContaining(['Vinos', 'Licores', 'Cervezas', 'Destilados', 'Refrescos', 'Alimentos', 'Menaje', 'Otros']))
     expect(response.body.library).toHaveLength(8)
     expect(response.body.accounts).toEqual([
       { username: 'admin', employeeName: 'Administrador', role: 'admin' },
@@ -41,6 +44,56 @@ describe('SQLite-backed application API', () => {
     expect(JSON.stringify(response.body)).not.toContain('pin_hash')
     expect(database.raw.prepare('SELECT COUNT(*) AS count FROM library_articles').get())
       .toMatchObject({ count: 8 })
+  })
+
+  it('migrates legacy stock categories and units without losing quantities', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'checkapp-stock-migration-'))
+    const databasePath = join(directory, 'stock.sqlite')
+    const legacy = new Database(databasePath)
+    legacy.exec(`
+      CREATE TABLE stock_products (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT NOT NULL,
+        minimum_quantity REAL NOT NULL,
+        location TEXT NOT NULL,
+        default_image TEXT NOT NULL,
+        counted INTEGER NOT NULL,
+        photo TEXT,
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO stock_products VALUES
+        (1, 'Café', 'Bebidas', 2, 'kg', 3, 'Almacén', 'stock-images/drinks.svg', 1, NULL, '2026-10-20T08:00:00.000Z'),
+        (2, 'Detergente', 'Limpieza', 500, 'ml', 100, 'Cuarto', 'stock-images/cleaning.svg', 1, NULL, '2026-10-20T08:00:00.000Z');
+    `)
+    legacy.close()
+
+    const migrated = createDatabase(databasePath)
+    try {
+      expect(migrated.getStock()).toEqual([
+        expect.objectContaining({
+          name: 'Café',
+          category: 'Refrescos',
+          subCategory: '',
+          quantity: 2000,
+          unit: 'g',
+          minimumQuantity: 3000,
+        }),
+        expect.objectContaining({
+          name: 'Detergente',
+          category: 'Otros',
+          subCategory: '',
+          quantity: 0.5,
+          unit: 'L',
+          minimumQuantity: 0.1,
+        }),
+      ])
+    } finally {
+      migrated.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it('adds illustrated library tutorials for admins only', async () => {
@@ -336,12 +389,13 @@ describe('SQLite-backed application API', () => {
 
     const product: StockProductInput = {
       name: 'Producto de prueba',
-      category: 'Bebidas',
+      category: 'Vinos',
+      subCategory: 'Tinto',
       quantity: 4,
       unit: 'L',
       minimumQuantity: 1,
       location: 'Cámara',
-      defaultImage: STOCK_CATEGORY_IMAGE.Bebidas,
+      defaultImage: STOCK_CATEGORY_IMAGE.Vinos,
       counted: true,
     }
     const stockResponse = await admin.post('/api/stock/products')
@@ -350,6 +404,7 @@ describe('SQLite-backed application API', () => {
       .expect(201)
     const createdProduct = stockResponse.body.stock.find((item: { name: string }) => item.name === product.name)
     expect(createdProduct.quantity).toBe(4)
+    expect(createdProduct.subCategory).toBe('Tinto')
 
     const moved = await admin.post(`/api/stock/products/${createdProduct.id}/movements`)
       .set('X-CheckApp-Request', 'database-write')
@@ -486,6 +541,7 @@ describe('SQLite-backed application API', () => {
         id: product.id,
         name: product.name,
         category: product.category,
+        subCategory: product.subCategory,
         quantity: counts[index].quantity,
         unit: product.unit,
         minimumQuantity: product.minimumQuantity,

@@ -7,9 +7,8 @@ import {
 import {
   STOCK_CATEGORIES,
   STOCK_UNIT_LABELS,
-  filterStockProducts,
-  type StockProduct,
-} from './stock'
+} from './stock-options'
+import { filterStockProducts, type StockProduct } from './stock'
 import { escapeHtml } from './html'
 
 type LibraryViewElements = {
@@ -177,7 +176,7 @@ export function renderStockView(
               </div>
               <div class="stock-product-description">
                 <h3>${escapeHtml(product.name)}</h3>
-                <span>${escapeHtml(product.category)}</span>
+                <span>${escapeHtml(product.category)}${product.subCategory ? ` · ${escapeHtml(product.subCategory)}` : ''}</span>
               </div>
             </div>
             <div class="stock-item-quantity">

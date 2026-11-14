@@ -116,6 +116,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       category TEXT NOT NULL,
+      sub_category TEXT NOT NULL DEFAULT '',
       quantity REAL NOT NULL,
       unit TEXT NOT NULL,
       minimum_quantity REAL NOT NULL,
@@ -150,6 +151,24 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
   if (!taskColumns.some((column) => column.name === 'completed_by_name')) {
     database.exec('ALTER TABLE tasks ADD COLUMN completed_by_name TEXT')
   }
+  const stockColumns = database.prepare('PRAGMA table_info(stock_products)').all() as Array<{ name: string }>
+  if (!stockColumns.some((column) => column.name === 'sub_category')) {
+    database.exec("ALTER TABLE stock_products ADD COLUMN sub_category TEXT NOT NULL DEFAULT ''")
+  }
+  database.exec(`
+    UPDATE stock_products SET category = 'Refrescos' WHERE category = 'Bebidas';
+    UPDATE stock_products SET category = 'Otros' WHERE category = 'Limpieza';
+    UPDATE stock_products SET
+      quantity = quantity * 1000,
+      minimum_quantity = minimum_quantity * 1000,
+      unit = 'g'
+    WHERE unit = 'kg';
+    UPDATE stock_products SET
+      quantity = quantity / 1000,
+      minimum_quantity = minimum_quantity / 1000,
+      unit = 'L'
+    WHERE unit = 'ml';
+  `)
   const libraryColumns = database.prepare('PRAGMA table_info(library_articles)').all() as Array<{ name: string }>
   if (!libraryColumns.some((column) => column.name === 'image')) {
     database.exec('ALTER TABLE library_articles ADD COLUMN image TEXT')
@@ -416,7 +435,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
     },
     getStock(): StockProduct[] {
       const rows = database.prepare(`
-        SELECT id, name, category, quantity, unit, minimum_quantity, location,
+        SELECT id, name, category, sub_category, quantity, unit, minimum_quantity, location,
           default_image, counted, photo, updated_at
         FROM stock_products ORDER BY name COLLATE NOCASE, id
       `).all() as Array<Record<string, unknown>>
@@ -424,6 +443,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
         id: Number(row.id),
         name: String(row.name),
         category: row.category as StockProduct['category'],
+        subCategory: String(row.sub_category),
         quantity: Number(row.quantity),
         unit: row.unit as StockProduct['unit'],
         minimumQuantity: Number(row.minimum_quantity),
@@ -829,14 +849,15 @@ function updateTaskRow(database: Database.Database, task: CalendarTask): void {
 function insertStock(database: Database.Database, stock: StockProduct[]): void {
   const insert = database.prepare(`
     INSERT INTO stock_products
-      (id, name, category, quantity, unit, minimum_quantity, location, default_image, counted, photo, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, name, category, sub_category, quantity, unit, minimum_quantity, location, default_image, counted, photo, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   for (const product of stock) {
     insert.run(
       product.id,
       product.name,
       product.category,
+      product.subCategory,
       product.quantity,
       product.unit,
       product.minimumQuantity,
