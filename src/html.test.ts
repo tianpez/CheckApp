@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderAppShell } from './app-shell'
-import { renderLibraryArticleDetail } from './catalog-views'
+import { renderLibraryArticleDetail, renderStockView } from './catalog-views'
 import { escapeHtml } from './html'
 
 describe('escapeHtml', () => {
@@ -33,11 +33,44 @@ describe('escapeHtml', () => {
   it('renders the bulk stock count action and form', () => {
     const shell = renderAppShell()
 
+    expect(shell).not.toContain('data-show-calendar')
     expect(shell).toContain('data-stock-count>Realizar control de stock</button>')
     expect(shell).toContain('id="stock-count-dialog"')
     expect(shell).toContain('id="stock-count-form"')
     expect(shell).toContain('id="stock-count-list"')
     expect(shell).toContain('Guardar control')
+  })
+
+  it('shows stock edit and delete actions without a manage dropdown', () => {
+    const list = { innerHTML: '' } as HTMLDivElement
+    renderStockView([{
+      id: 1,
+      name: 'Pan blanco',
+      category: 'Alimentos',
+      subCategory: 'Salados',
+      quantity: 3,
+      unit: 'g',
+      minimumQuantity: 1,
+      location: 'Almacén',
+      defaultImage: 'stock-images/bread.svg',
+      counted: true,
+      updatedAt: '',
+    }], true, {
+      list,
+      search: { value: '' } as HTMLInputElement,
+      category: { value: '' } as HTMLSelectElement,
+      statusFilter: { value: 'all' } as HTMLSelectElement,
+      resultCount: { textContent: '' } as HTMLParagraphElement,
+      uncountedCount: null,
+      lowCount: null,
+      outCount: null,
+      initialNote: null,
+    })
+
+    expect(list.innerHTML).toContain('data-edit-stock="1">Editar</button>')
+    expect(list.innerHTML).toContain('data-delete-stock="1">Eliminar</button>')
+    expect(list.innerHTML).not.toContain('Gestionar')
+    expect(list.innerHTML).not.toContain('<details')
   })
 
   it('renders all tutorial images and steps in the individual library detail', () => {
