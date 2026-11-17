@@ -18,10 +18,10 @@ CheckApp es una aplicación web adaptable a móviles y escritorio para organizar
 
 ## Funciones principales
 
-### Tareas, calendario y seguimiento
+### Tareas y seguimiento
 
 - Programa tareas diarias, semanales, mensuales o eventuales.
-- Administra tareas por fecha desde el calendario y consulta las tareas del día en la vista **Tareas**.
+- La vista de calendario para administradores está temporalmente oculta; las tareas del día siguen disponibles en **Tareas**.
 - Guía su ejecución mediante listas de pasos; una tarea se completa cuando se terminan todos.
 - Muestra avisos de tareas pendientes fuera de horario. La vista de administración permite consultar el historial de los últimos siete días.
 - Identifica los turnos de mañana (06:00–12:00), tarde (12:00–18:00) y noche (18:00–24:00) con colores.

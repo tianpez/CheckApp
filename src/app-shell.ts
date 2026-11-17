@@ -54,7 +54,6 @@ export function renderAppShell(): string {
 
         <nav class="primary-nav" aria-label="Menú principal">
           <button class="nav-link is-active" type="button" data-show-daily-tasks aria-current="page">Tareas</button>
-          <button class="nav-link" type="button" data-show-calendar data-admin-only hidden>Calendario</button>
           <button class="nav-link" type="button" data-show-library>Biblioteca</button>
           <button class="nav-link" type="button" data-show-stock data-admin-only hidden>Stock</button>
           <button class="nav-link" type="button" data-show-admin data-admin-only hidden>Administración</button>

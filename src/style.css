@@ -1297,94 +1297,14 @@ img {
   font-size: 0.7rem;
 }
 
-.stock-item-manage {
-  position: relative;
-  justify-self: end;
-  z-index: 1;
-}
-
-.stock-item-manage[open] {
-  z-index: 5;
-}
-
-.stock-item-manage > summary {
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: #fff;
-  color: var(--accent-strong);
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 700;
-  list-style: none;
-  white-space: nowrap;
-}
-
-.stock-item-manage > summary::-webkit-details-marker {
-  display: none;
-}
-
-.stock-item-manage > summary::after {
-  content: '⌄';
-  margin-left: 7px;
-}
-
-.stock-item-manage[open] > summary::after {
-  content: '⌃';
-}
-
-.stock-item-manage-panel {
-  position: absolute;
-  top: calc(100% + 7px);
-  right: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  width: min(470px, calc(100vw - 44px));
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fffdfa;
-  box-shadow: 0 12px 28px rgba(54, 41, 32, 0.16);
-}
-
 .stock-item-meta {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 5px 14px;
   color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.stock-movement-controls {
-  display: grid;
-  grid-template-columns: minmax(76px, 1fr) auto auto;
-  align-items: end;
-  gap: 6px;
-}
-
-.stock-movement-controls label {
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
   font-size: 0.68rem;
-  font-weight: 700;
 }
 
-.stock-movement-controls input {
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fff;
-  color: var(--ink);
-}
-
-.stock-movement-controls button,
 .stock-item-actions button {
   min-height: 38px;
   padding: 7px 9px;
@@ -1398,33 +1318,11 @@ img {
   white-space: nowrap;
 }
 
-.stock-movement-controls button:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
-
-.stock-movement-controls .stock-entry-button {
-  border-color: rgba(59, 142, 108, 0.2);
-  background: rgba(59, 142, 108, 0.08);
-  color: #2d7c62;
-}
-
-.stock-movement-controls .stock-exit-button {
-  border-color: rgba(170, 82, 54, 0.2);
-  background: rgba(170, 82, 54, 0.06);
-  color: #813b2d;
-}
-
 .stock-item-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.stock-count-required {
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-size: 0.72rem;
+  justify-self: end;
 }
 
 .stock-item-actions button.admin-delete {
@@ -3122,30 +3020,6 @@ img {
     font-size: 0.65rem;
   }
 
-  .stock-item-manage {
-    justify-self: end;
-  }
-
-  .stock-item-manage > summary {
-    padding: 6px 7px;
-    font-size: 0.68rem;
-  }
-
-  .stock-item-manage-panel {
-    position: relative;
-    top: auto;
-    right: auto;
-    grid-template-columns: 1fr;
-    width: 100%;
-    margin-top: 8px;
-    padding: 9px;
-  }
-
-  .stock-movement-controls {
-    grid-template-columns: minmax(65px, 1fr) auto auto;
-  }
-
-  .stock-movement-controls button,
   .stock-item-actions button {
     min-height: 40px;
   }
@@ -3596,7 +3470,6 @@ img {
   .calendar-today-btn,
   .primary-action,
   .admin-row-actions button,
-  .stock-movement-controls button,
   .stock-item-actions button {
     min-height: 44px;
   }

@@ -177,6 +177,10 @@ export function renderStockView(
               <div class="stock-product-description">
                 <h3>${escapeHtml(product.name)}</h3>
                 <span>${escapeHtml(product.category)}${product.subCategory ? ` · ${escapeHtml(product.subCategory)}` : ''}</span>
+                <div class="stock-item-meta">
+                  <span>Ubicación: ${escapeHtml(product.location || 'Sin indicar')}</span>
+                  <span>Mínimo: ${quantity.format(product.minimumQuantity)} ${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</span>
+                </div>
               </div>
             </div>
             <div class="stock-item-quantity">
@@ -185,29 +189,10 @@ export function renderStockView(
                 : '<span class="stock-unverified">Sin recuento</span>'}</strong>
               ${stockState && product.counted ? `<span class="stock-state ${stateClass}">${stockState}</span>` : ''}
             </div>
-            <details class="stock-item-manage">
-              <summary>Gestionar</summary>
-              <div class="stock-item-manage-panel">
-                <div class="stock-item-meta">
-                  <span>Ubicación: ${escapeHtml(product.location || 'Sin indicar')}</span>
-                  <span>Mínimo: ${quantity.format(product.minimumQuantity)} ${escapeHtml(STOCK_UNIT_LABELS[product.unit])}</span>
-                </div>
-                <div class="stock-movement-controls" aria-label="Registrar movimiento de stock de ${escapeHtml(product.name)}">
-                  <label>
-                    Cantidad
-                    <input data-stock-adjustment type="number" min="0.001" step="0.001" value="1" aria-label="Cantidad a mover de ${escapeHtml(product.name)}" />
-                  </label>
-
-                </div>
-                ${product.counted ? '' : '<small class="stock-count-required">Realiza el recuento antes de registrar movimientos.</small>'}
-                <div class="stock-item-actions">
-                  <button type="button" data-edit-stock="${product.id}">Editar</button>
-                  <button type="button" class="admin-delete" data-delete-stock="${product.id}">Eliminar</button>
-                </div>
-              </div>
-                </div>
-              </div>
-            </details>
+            <div class="stock-item-actions">
+              <button type="button" data-edit-stock="${product.id}">Editar</button>
+              <button type="button" class="admin-delete" data-delete-stock="${product.id}">Eliminar</button>
+            </div>
           </article>
         `
       }).join('')
