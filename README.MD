@@ -89,8 +89,8 @@ Una base nueva incluye cuentas de demostración:
 
 | Código | Rol |
 | --- | --- |
-| `123456` | Administrador |
-| `000000` | Usuario |
+| `` | Administrador |
+| `` | Usuario |
 
 Cambia estos códigos antes de utilizar la aplicación en un entorno real.
 
