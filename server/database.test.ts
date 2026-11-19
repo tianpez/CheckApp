@@ -154,6 +154,10 @@ describe('SQLite-backed application API', () => {
       .set('X-CheckApp-Request', 'database-write')
       .send({ pin: '99999' })
       .expect(401, { error: 'Código incorrecto. Comprueba los cinco dígitos.' })
+    await loginAgent.post('/api/auth/login')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ pin: '123456' })
+      .expect(401, { error: 'Código incorrecto. Comprueba los cinco dígitos.' })
 
     const adminLogin = await loginAgent.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
@@ -272,11 +276,6 @@ describe('SQLite-backed application API', () => {
         role: 'user',
       })
       .expect(201)
-    expect(created.body.accounts).toContainEqual({
-      username: '1042',
-      employeeName: 'María López',
-      role: 'user',
-    })
     await admin.post('/api/accounts')
       .set('X-CheckApp-Request', 'database-write')
       .send({
@@ -286,6 +285,11 @@ describe('SQLite-backed application API', () => {
         role: 'user',
       })
       .expect(400, { error: 'El PIN debe contener exactamente 5 números.' })
+    expect(created.body.accounts).toContainEqual({
+      username: '1042',
+      employeeName: 'María López',
+      role: 'user',
+    })
 
     const renamed = await admin.patch('/api/accounts/1042/name')
       .set('X-CheckApp-Request', 'database-write')

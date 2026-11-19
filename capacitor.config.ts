@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.checkapp.app',
-  appName: 'Checkflow',
+  appName: 'CheckApp',
   webDir: 'dist',
 
   server: {
