@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { renderAppShell } from './app-shell'
 import { renderLibraryArticleDetail, renderStockView } from './catalog-views'
@@ -39,6 +40,22 @@ describe('escapeHtml', () => {
     expect(shell).toContain('id="stock-count-form"')
     expect(shell).toContain('id="stock-count-list"')
     expect(shell).toContain('Guardar control')
+  })
+
+  it('uses the Checkflow brand assets and includes persistent eventual reminders', () => {
+    const shell = renderAppShell()
+    const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+    const styles = readFileSync(new URL('./style.css', import.meta.url), 'utf8')
+
+    expect(shell).toContain('src="/brand-images/checkflow-logo.png"')
+    expect(shell).toContain('src="/brand-images/checkflow-ico.png"')
+    expect(shell).toContain('id="eventual-reminder-panel"')
+    expect(page).toContain('href="/brand-images/checkflow-ico.png"')
+    expect(styles).toContain('--brand-forest: #074540')
+    expect(styles).toContain('--brand-green: #288c6a')
+    expect(styles).toContain('--brand-light: #b5dab8')
+    expect(existsSync(new URL('../public/brand-images/checkflow-logo.png', import.meta.url))).toBe(true)
+    expect(existsSync(new URL('../public/brand-images/checkflow-ico.png', import.meta.url))).toBe(true)
   })
 
   it('shows stock edit and delete actions without a manage dropdown', () => {

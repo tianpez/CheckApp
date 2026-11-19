@@ -295,6 +295,15 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       materialize()
       return getOccurrenceRows(database, from, to)
     },
+    getPendingEventualNotifications(): CalendarTask[] {
+      const eventualTasks = this.getTasks().filter((task) => task.period === 'eventual')
+      database.transaction(() => {
+        for (const task of eventualTasks) {
+          insertPendingOccurrence(database, task, task.date)
+        }
+      })()
+      return getPendingEventualOccurrenceRows(database)
+    },
     getTaskHistory(): CalendarTask[] {
       const today = dateKey(new Date())
       const weekStartDate = new Date()
@@ -355,7 +364,10 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('La tarea no es válida.')
       const tasks = this.getTasks()
       const nextId = tasks.reduce((highest, task) => Math.max(highest, task.id), 0) + 1
-      const task = parseTaskList([{ ...value, id: nextId }])[0]
+      const parsedTask = parseTaskList([{ ...value, id: nextId }])[0]
+      const task = parsedTask.period === 'eventual'
+        ? { ...parsedTask, status: 'Pendiente' as const, completed: false, completedBy: undefined, completedByName: undefined }
+        : parsedTask
       database.transaction(() => {
         insertTasks(database, [task])
         saveOccurrence(database, task)
@@ -789,6 +801,23 @@ function getOccurrenceRows(
     WHERE task_occurrences.date BETWEEN ? AND ?
     ORDER BY task_occurrences.date, tasks.time, tasks.id
   `).all(from, to) as Array<Record<string, unknown>>
+  return mapOccurrenceRows(rows)
+}
+
+function getPendingEventualOccurrenceRows(database: Database.Database): CalendarTask[] {
+  const rows = database.prepare(`
+    SELECT tasks.id, task_occurrences.date, tasks.period, tasks.title, tasks.time,
+      task_occurrences.status, task_occurrences.completed, task_occurrences.completed_by,
+      task_occurrences.completed_by_name, tasks.description, task_occurrences.checklist_json
+    FROM task_occurrences
+    JOIN tasks ON tasks.id = task_occurrences.task_id
+    WHERE tasks.period = 'eventual' AND task_occurrences.completed = 0
+    ORDER BY task_occurrences.date, tasks.time, tasks.id
+  `).all() as Array<Record<string, unknown>>
+  return mapOccurrenceRows(rows)
+}
+
+function mapOccurrenceRows(rows: Array<Record<string, unknown>>): CalendarTask[] {
   return rows.map((row) => ({
     id: Number(row.id),
     date: String(row.date),

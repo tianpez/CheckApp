@@ -4,12 +4,16 @@
   --panel-strong: #fff;
   --ink: #242424;
   --muted: #666663;
-  --line: #e6e6e2;
-  --accent: #6d7770;
-  --accent-strong: #343a36;
-  --sage: #e6e9e5;
-  --gold: #e9e5dc;
-  --shadow: 0 12px 32px rgba(30, 34, 31, 0.07);
+  --line: #dce8df;
+  --brand-forest: #074540;
+  --brand-green: #288c6a;
+  --brand-light: #b5dab8;
+  --brand-soft: #edf5ef;
+  --accent: var(--brand-green);
+  --accent-strong: var(--brand-forest);
+  --sage: var(--brand-soft);
+  --gold: var(--brand-light);
+  --shadow: 0 12px 32px rgba(7, 69, 64, 0.08);
   font-family: Arial, 'Helvetica Neue', 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--bg);
@@ -75,11 +79,11 @@ img {
   box-shadow: var(--shadow);
 }
 
-.login-brand-mark {
-  width: 52px;
-  height: 52px;
+.login-brand-logo {
+  width: 140px;
+  height: 140px;
   margin-bottom: 4px;
-  font-size: 1.6rem;
+  object-fit: contain;
 }
 
 .login-card .eyebrow,
@@ -185,8 +189,8 @@ img {
 }
 
 .pin-digit.is-filled {
-  border-color: rgba(141, 76, 45, 0.55);
-  background: rgba(184, 107, 63, 0.08);
+  border-color: rgba(7, 69, 64, 0.55);
+  background: rgba(40, 140, 106, 0.08);
   transform: translateY(-1px);
 }
 
@@ -212,12 +216,12 @@ img {
 }
 
 .pin-key:hover {
-  background: #fff8f1;
+  background: var(--brand-soft);
 }
 
 .pin-key:active {
   transform: scale(0.96);
-  background: rgba(184, 107, 63, 0.13);
+  background: rgba(40, 140, 106, 0.13);
 }
 
 .pin-key-delete {
@@ -286,6 +290,12 @@ img {
   font-weight: 700;
 }
 
+.brand-mark-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
 .brand-title,
 .brand-subtitle {
   margin: 0;
@@ -328,7 +338,7 @@ img {
 }
 
 .nav-link.is-active {
-  background: #f0f1ef;
+  background: var(--brand-soft);
   color: var(--accent-strong);
 }
 
@@ -1513,7 +1523,7 @@ img {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #82a995, #397c61);
+  background: linear-gradient(90deg, var(--brand-light), var(--brand-green));
   transition: width 0.25s ease;
 }
 
@@ -1529,6 +1539,101 @@ img {
   border: 1px solid rgba(170, 82, 54, 0.24);
   border-radius: 18px;
   background: linear-gradient(135deg, rgba(255, 239, 226, 0.9), rgba(255, 250, 245, 0.94));
+}
+
+.eventual-reminder-panel {
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(40, 140, 106, 0.25);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(237, 245, 239, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.eventual-reminder-panel[hidden] {
+  display: none;
+}
+
+.eventual-reminder-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eventual-reminder-heading .eyebrow {
+  margin-bottom: 4px;
+  color: var(--brand-green);
+}
+
+.eventual-reminder-heading h3 {
+  margin: 0 0 5px;
+  color: var(--brand-forest);
+  font-size: 1.2rem;
+}
+
+.eventual-reminder-heading p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.eventual-reminder-count {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand-forest);
+  color: #fff;
+  font-weight: 800;
+}
+
+.eventual-reminder-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eventual-reminder-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(7, 69, 64, 0.12);
+}
+
+.eventual-reminder-list li > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.eventual-reminder-list strong {
+  color: var(--brand-forest);
+  font-size: 0.9rem;
+}
+
+.eventual-reminder-list small {
+  color: var(--muted);
+}
+
+.eventual-reminder-list button {
+  padding: 8px 11px;
+  border: 1px solid rgba(40, 140, 106, 0.25);
+  border-radius: 9px;
+  background: rgba(40, 140, 106, 0.08);
+  color: var(--brand-forest);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.eventual-reminder-list button:hover {
+  background: rgba(40, 140, 106, 0.16);
 }
 
 .deviation-panel[hidden] {
@@ -2568,8 +2673,8 @@ img {
 }
 
 .status.listo {
-  background: rgba(59, 142, 108, 0.12);
-  color: #2d7c62;
+  background: rgba(40, 140, 106, 0.12);
+  color: var(--brand-green);
 }
 
 .task-card h3 {
@@ -2769,6 +2874,11 @@ img {
   }
 
   .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand-mark-img {
     width: 38px;
     height: 38px;
   }

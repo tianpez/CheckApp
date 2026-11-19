@@ -265,6 +265,10 @@ app.get('/api/auth/session', (request, response) => {
     }
   })
 
+  app.get('/api/tasks/eventual-notifications', authenticate, (_request, response) => {
+    response.json({ tasks: database.getPendingEventualNotifications() })
+  })
+
   app.get('/api/tasks/history', authenticate, (_request, response) => {
     requireAdmin(accountFromResponse(response))
     const tasks = database.getTaskHistory().map(({ checklist: _checklist, ...task }) => task)

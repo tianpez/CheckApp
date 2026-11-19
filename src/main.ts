@@ -128,6 +128,7 @@ if (app) {
   const dailyProgressPercent = document.querySelector<HTMLElement>('#daily-progress-percent')
   const dailyProgressTrack = document.querySelector<HTMLDivElement>('.daily-progress-track')
   const dailyProgressFill = document.querySelector<HTMLSpanElement>('#daily-progress-fill')
+  const eventualReminderPanel = document.querySelector<HTMLElement>('#eventual-reminder-panel')
   const selectedTaskList = document.querySelector<HTMLDivElement>('#selected-task-list')
   const monthTitle = document.querySelector<HTMLHeadingElement>('#calendar-month')
   const selectedDateTitle = document.querySelector<HTMLHeadingElement>('#selected-date-title')
@@ -144,6 +145,7 @@ if (app) {
   let selectedDate = dateKey(now)
   let tasks: CalendarTask[] = []
   let taskOccurrences: CalendarTask[] = []
+  let pendingEventualTasks: CalendarTask[] = []
   let taskHistory: TaskHistoryEntry[] = []
   let stock: StockProduct[] = []
   let libraryData: BootstrapData['library'] = []
@@ -273,7 +275,11 @@ if (app) {
     }
   }
 
-  const showNotification = (message: string, kind: 'success' | 'warning' = 'success') => {
+  const showNotification = (
+    message: string,
+    kind: 'success' | 'warning' = 'success',
+    desktopTitle = 'CheckApp · Tarea completada',
+  ) => {
     void Swal.fire({
       toast: true,
       position: 'bottom-end',
@@ -286,7 +292,7 @@ if (app) {
     })
 
     if (kind === 'success' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('CheckApp · Tarea completada', { body: message })
+      new Notification(desktopTitle, { body: message })
     }
   }
 
@@ -302,7 +308,7 @@ if (app) {
       showCancelButton: true,
       confirmButtonText,
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#9b4936',
+      confirmButtonColor: '#074540',
       reverseButtons: true,
       focusCancel: true,
     })
@@ -379,7 +385,7 @@ if (app) {
     const loadId = ++occurrenceLoadId
     const { from, to } = currentCalendarRange()
     const today = dateKey(new Date())
-    const [calendarResponse, todayResponse, historyResponse] = await Promise.all([
+    const [calendarResponse, todayResponse, historyResponse, eventualNotificationsResponse] = await Promise.all([
       apiRequest<{ tasks: CalendarTask[] }>(`/tasks/occurrences?from=${from}&to=${to}`),
       today >= from && today <= to
         ? Promise.resolve({ tasks: [] as CalendarTask[] })
@@ -387,9 +393,11 @@ if (app) {
       isAdmin()
         ? apiRequest<{ tasks: TaskHistoryEntry[] }>('/tasks/history')
         : Promise.resolve({ tasks: [] as TaskHistoryEntry[] }),
+      apiRequest<{ tasks: CalendarTask[] }>('/tasks/eventual-notifications'),
     ])
     if (loadId !== occurrenceLoadId) return
     taskHistory = historyResponse.tasks
+    pendingEventualTasks = eventualNotificationsResponse.tasks
     taskOccurrences = mergeOccurrences(calendarResponse.tasks, todayResponse.tasks)
     renderDailyChecklist()
     renderCalendar()
@@ -637,6 +645,41 @@ if (app) {
       : ''
   }
 
+  const renderEventualReminders = () => {
+    if (!eventualReminderPanel) return
+    const pendingTasks = pendingEventualTasks.filter((task) => !task.completed)
+    eventualReminderPanel.hidden = pendingTasks.length === 0
+    if (pendingTasks.length === 0) {
+      eventualReminderPanel.innerHTML = ''
+      return
+    }
+
+    const today = dateKey(new Date())
+    eventualReminderPanel.innerHTML = `
+      <div class="eventual-reminder-heading">
+        <div>
+          <p class="eyebrow">Recordatorios persistentes</p>
+          <h3>Tareas eventuales pendientes</h3>
+          <p>Estos avisos se mantienen hasta que se complete cada tarea.</p>
+        </div>
+        <span class="eventual-reminder-count">${pendingTasks.length}</span>
+      </div>
+      <ul class="eventual-reminder-list">
+        ${pendingTasks.map((task) => `
+          <li>
+            <span>
+              <strong>${escapeHtml(task.title)}</strong>
+              <small>${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(parseDateKey(task.date))} · ${escapeHtml(task.time)}</small>
+            </span>
+            ${task.date >= today
+              ? `<button type="button" data-open-eventual-reminder="${task.id}" data-occurrence-date="${task.date}">Abrir tarea</button>`
+              : '<span class="status pendiente">Vencida</span>'}
+          </li>
+        `).join('')}
+      </ul>
+    `
+  }
+
   const renderTaskChecklist = (taskId: number, occurrenceDate: string) => {
     if (!checklistDialogContent) return
     const task = taskOccurrences.find((item) => item.id === taskId && item.date === occurrenceDate)
@@ -702,6 +745,7 @@ if (app) {
   const renderDailyChecklist = () => {
     if (!dailyTaskList || !dailyProgressCount || !dailyProgressPercent || !dailyProgressTrack || !dailyProgressFill) return
 
+    renderEventualReminders()
     const todayTasks = tasksForDate(taskOccurrences, dateKey(new Date()))
     const completedTasks = todayTasks.filter((task) => task.completed).length
     const percentage = todayTasks.length === 0 ? 0 : Math.round((completedTasks / todayTasks.length) * 100)
@@ -1685,6 +1729,7 @@ if (app) {
       showNotification('Añade al menos un paso a la checklist.', 'warning')
       return
     }
+    const isNewTask = editingTaskId === null
     try {
       const taskId = editingTaskId
       const result = await apiRequest<{ tasks: CalendarTask[] }>(
@@ -1705,6 +1750,13 @@ if (app) {
     editingTaskId = null
     try {
       await loadTaskOccurrences()
+      if (isNewTask && newTask.period === 'eventual') {
+        showNotification(
+          `Tarea eventual pendiente: ${newTask.title}`,
+          'success',
+          'CheckApp · Tarea pendiente',
+        )
+      }
     } catch (error) {
       showNotification(error instanceof Error ? error.message : 'No se pudieron actualizar las tareas.', 'warning')
     }
@@ -1818,6 +1870,27 @@ if (app) {
     const button = target.closest<HTMLButtonElement>('[data-open-checklist]')
     if (button?.dataset.openChecklist && button.dataset.occurrenceDate) {
       openTaskChecklist(Number(button.dataset.openChecklist), button.dataset.occurrenceDate)
+    }
+  })
+
+  eventualReminderPanel?.addEventListener('click', async (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const button = target.closest<HTMLButtonElement>('[data-open-eventual-reminder]')
+    if (!button?.dataset.openEventualReminder || !button.dataset.occurrenceDate) return
+    const taskId = Number(button.dataset.openEventualReminder)
+    const occurrenceDate = button.dataset.occurrenceDate
+    const selected = parseDateKey(occurrenceDate)
+    selectedDate = occurrenceDate
+    visibleMonth = new Date(selected.getFullYear(), selected.getMonth(), 1)
+    try {
+      await loadTaskOccurrences()
+      openTaskChecklist(taskId, occurrenceDate)
+    } catch (error) {
+      showNotification(
+        error instanceof Error ? error.message : 'No se pudo abrir la tarea eventual.',
+        'warning',
+      )
     }
   })
 

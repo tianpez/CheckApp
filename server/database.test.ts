@@ -226,6 +226,41 @@ describe('SQLite-backed application API', () => {
       .expect(403)
   })
 
+  it('keeps eventual-task notifications pending until the occurrence is completed', async () => {
+    const tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrow = dateKey(tomorrowDate)
+    const created = await admin.post('/api/tasks')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        task: {
+          date: tomorrow,
+          period: 'eventual',
+          title: 'Revisar equipo eventual',
+          time: '10:00',
+          status: 'En curso',
+          completed: true,
+          description: '',
+          checklist: createChecklistSteps('Comprobar equipo'),
+        },
+      })
+      .expect(201)
+    const task = created.body.tasks.find((item: { title: string }) => item.title === 'Revisar equipo eventual')
+    expect(task).toMatchObject({ status: 'Pendiente', completed: false })
+
+    const pending = await user.get('/api/tasks/eventual-notifications').expect(200)
+    expect(pending.body.tasks).toContainEqual(
+      expect.objectContaining({ id: task.id, date: tomorrow, period: 'eventual', completed: false }),
+    )
+
+    await user.patch(`/api/tasks/${task.id}/occurrences/${tomorrow}/checklist/${task.checklist[0].id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ completed: true })
+      .expect(200)
+    const afterCompletion = await user.get('/api/tasks/eventual-notifications').expect(200)
+    expect(afterCompletion.body.tasks).not.toContainEqual(expect.objectContaining({ id: task.id }))
+  })
+
   it('assigns employee names to access codes and records the completing employee on each occurrence', async () => {
     const employee = request.agent(app)
     const created = await admin.post('/api/accounts')

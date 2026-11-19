@@ -18,7 +18,7 @@ export function renderAppShell(): string {
   return `
     <section id="login-screen" class="login-screen" aria-labelledby="login-title">
       <form id="login-form" class="login-card">
-        <div class="brand-mark login-brand-mark">C</div>
+        <img class="login-brand-logo" src="/brand-images/checkflow-logo.png" alt="Checkflow" />
         <p class="eyebrow">Acceso de usuarios</p>
         <h1 id="login-title">CheckApp</h1>
         <p class="login-copy">Introduce tu código personal para acceder a las tareas del equipo.</p>
@@ -45,7 +45,7 @@ export function renderAppShell(): string {
     <div id="app-shell" class="app-shell" hidden>
       <header class="topbar">
         <div class="brand-wrap">
-          <div class="brand-mark">A</div>
+          <img class="brand-mark-img" src="/brand-images/checkflow-ico.png" alt="" aria-hidden="true" />
           <div>
             <p class="brand-title">CheckApp</p>
             <p class="brand-subtitle">Gestión de tareas</p>
@@ -89,6 +89,7 @@ export function renderAppShell(): string {
           </div>
           ${timeBandLegend}
           <div id="deviation-panel" class="deviation-panel" hidden></div>
+          <section id="eventual-reminder-panel" class="eventual-reminder-panel" aria-live="polite" hidden></section>
           <div id="daily-task-list" class="daily-task-list"></div>
         </section>
 
