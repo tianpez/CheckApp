@@ -20,11 +20,11 @@ describe('SQLite-backed application API', () => {
   beforeAll(async () => {
     await admin.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '123456' })
+      .send({ pin: '12345' })
       .expect(200)
     await user.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '000000' })
+      .send({ pin: '00000' })
       .expect(200)
   })
 
@@ -152,12 +152,12 @@ describe('SQLite-backed application API', () => {
     const loginAgent = request.agent(app)
     await loginAgent.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '12345' })
-      .expect(401, { error: 'Código incorrecto. Comprueba los seis dígitos.' })
+      .send({ pin: '99999' })
+      .expect(401, { error: 'Código incorrecto. Comprueba los cinco dígitos.' })
 
     const adminLogin = await loginAgent.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '123456' })
+      .send({ pin: '12345' })
       .expect(200)
     expect(adminLogin.body.user).toEqual({
       username: 'admin',
@@ -172,7 +172,7 @@ describe('SQLite-backed application API', () => {
     const userAgent = request.agent(app)
     const userLogin = await userAgent.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '000000' })
+      .send({ pin: '00000' })
       .expect(200)
     expect(userLogin.body.user).toEqual({
       username: 'user',
@@ -268,7 +268,7 @@ describe('SQLite-backed application API', () => {
       .send({
         username: '1042',
         employeeName: 'María López',
-        pin: '456789',
+        pin: '45678',
         role: 'user',
       })
       .expect(201)
@@ -277,6 +277,15 @@ describe('SQLite-backed application API', () => {
       employeeName: 'María López',
       role: 'user',
     })
+    await admin.post('/api/accounts')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        username: 'sixdigit',
+        employeeName: 'Código inválido',
+        pin: '123456',
+        role: 'user',
+      })
+      .expect(400, { error: 'El PIN debe contener exactamente 5 números.' })
 
     const renamed = await admin.patch('/api/accounts/1042/name')
       .set('X-CheckApp-Request', 'database-write')
@@ -290,7 +299,7 @@ describe('SQLite-backed application API', () => {
 
     await employee.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
-      .send({ pin: '456789' })
+      .send({ pin: '45678' })
       .expect(200)
 
     const today = dateKey(new Date())
@@ -658,6 +667,9 @@ describe('SQLite-backed application API', () => {
       legacyDatabase.prepare(
         'INSERT INTO users (username, pin_hash, role) VALUES (?, ?, ?)',
       ).run('admin', hashPin('123456'), 'admin')
+      legacyDatabase.prepare(
+        'INSERT INTO users (username, pin_hash, role) VALUES (?, ?, ?)',
+      ).run('user', hashPin('000000'), 'user')
       legacyDatabase.prepare(`
         INSERT INTO tasks
           (id, date, period, title, time, status, completed, completed_by, description, checklist_json)
@@ -677,6 +689,16 @@ describe('SQLite-backed application API', () => {
           employeeName: 'admin',
           role: 'admin',
         })
+        expect(upgradedDatabase.getUserByPin('12345')).toMatchObject({
+          username: 'admin',
+          role: 'admin',
+        })
+        expect(upgradedDatabase.getUserByPin('00000')).toMatchObject({
+          username: 'user',
+          role: 'user',
+        })
+        expect(upgradedDatabase.getUserByPin('123456')).toBeNull()
+        expect(upgradedDatabase.getUserByPin('000000')).toBeNull()
         expect(upgradedDatabase.getTasks()[0]).toMatchObject({ title: 'Tarea anterior' })
         expect(upgradedDatabase.getTasks()[0].completedBy).toBeUndefined()
         expect(upgradedDatabase.getTaskOccurrences('2026-10-20', '2026-10-20')

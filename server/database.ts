@@ -44,6 +44,11 @@ export type LocalMigration = {
 
 export type AppDatabase = ReturnType<typeof createDatabase>
 
+const LEGACY_DEFAULT_PINS: Record<string, string> = {
+  admin: '123456',
+  user: '000000',
+}
+
 function hashPin(pin: string, salt = randomBytes(16).toString('hex')): string {
   const hash = pbkdf2Sync(pin, salt, 210_000, 32, 'sha256').toString('hex')
   return `${salt}:${hash}`
@@ -194,6 +199,33 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       }
     })
     seedUsers(INITIAL_ACCOUNTS)
+  }
+
+  database.prepare(
+    "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('default_pin_migration_done', '0')",
+  ).run()
+  const defaultPinMigrationDone = database.prepare(
+    "SELECT value FROM app_meta WHERE key = 'default_pin_migration_done'",
+  ).pluck().get() === '1'
+  if (!defaultPinMigrationDone) {
+    const getPinHash = database.prepare(
+      'SELECT pin_hash FROM users WHERE username = ? COLLATE NOCASE',
+    )
+    const updatePinHash = database.prepare(
+      'UPDATE users SET pin_hash = ? WHERE username = ? COLLATE NOCASE',
+    )
+    database.transaction(() => {
+      for (const account of INITIAL_ACCOUNTS) {
+        const legacyPin = LEGACY_DEFAULT_PINS[account.username.toLocaleLowerCase()]
+        const existing = getPinHash.get(account.username) as { pin_hash: string } | undefined
+        if (legacyPin && existing && verifyPin(legacyPin, existing.pin_hash)) {
+          updatePinHash.run(hashPin(account.pin), account.username)
+        }
+      }
+      database.prepare(
+        "UPDATE app_meta SET value = '1' WHERE key = 'default_pin_migration_done'",
+      ).run()
+    })()
   }
 
   if (count('tasks') === 0) insertTasks(database, createInitialTasks(now))
@@ -619,7 +651,7 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       if (!normalizedEmployeeName || normalizedEmployeeName.length > 80) {
         throw new Error('El nombre del empleado debe tener entre 1 y 80 caracteres.')
       }
-      if (!/^\d{6}$/.test(pin)) throw new Error('El PIN debe contener exactamente 6 números.')
+      if (!/^\d{5}$/.test(pin)) throw new Error('El PIN debe contener exactamente 5 números.')
       if (role !== 'admin' && role !== 'user') throw new Error('El rol seleccionado no es válido.')
       database.prepare('INSERT INTO users (username, employee_name, pin_hash, role) VALUES (?, ?, ?, ?)')
         .run(normalizedUsername, normalizedEmployeeName, hashPin(pin), role)

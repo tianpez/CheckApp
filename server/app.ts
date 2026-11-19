@@ -157,10 +157,10 @@ app.use((request, response, next) => {
       const address = request.ip ?? 'unknown'
       if (!loginAllowed(address)) throw new HttpError(429, 'Demasiados intentos. Prueba de nuevo en 15 minutos.')
       const pin = typeof request.body?.pin === 'string' ? request.body.pin : ''
-      const user = /^\d{6}$/.test(pin) ? database.getUserByPin(pin) : null
+      const user = /^\d{5}$/.test(pin) ? database.getUserByPin(pin) : null
       if (!user) {
         recordFailedLogin(address)
-        throw new HttpError(401, 'Código incorrecto. Comprueba los seis dígitos.')
+        throw new HttpError(401, 'Código incorrecto. Comprueba los cinco dígitos.')
       }
       failedLogins.delete(address)
     const token = database.createSession(user.username, SESSION_LIFETIME_MS)
@@ -645,7 +645,7 @@ app.get('/api/auth/session', (request, response) => {
         .json({ error: error.message })
       return
     }
-    console.error('Error en la API de CheckApp:', error)
+    console.error('Error en la API de Checkflow:', error)
     response.status(500).json({ error: 'No se pudo completar la operación en la base de datos.' })
   }
   app.use(errorHandler)

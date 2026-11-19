@@ -278,7 +278,7 @@ if (app) {
   const showNotification = (
     message: string,
     kind: 'success' | 'warning' = 'success',
-    desktopTitle = 'CheckApp · Tarea completada',
+    desktopTitle = 'Checkflow · Tarea completada',
   ) => {
     void Swal.fire({
       toast: true,
@@ -1076,10 +1076,10 @@ if (app) {
   })
 
   loginPin?.addEventListener('input', () => {
-    loginPin.value = loginPin.value.replace(/\D/g, '').slice(0, 6)
+    loginPin.value = loginPin.value.replace(/\D/g, '').slice(0, 5)
     renderPinDigits()
     if (loginError) loginError.hidden = true
-    if (loginPin.value.length === 6) loginForm?.requestSubmit()
+    if (loginPin.value.length === 5) loginForm?.requestSubmit()
   })
 
   document.querySelector<HTMLDivElement>('.pin-keypad')?.addEventListener('click', (event) => {
@@ -1089,12 +1089,12 @@ if (app) {
       loginPin.value = loginPin.value.slice(0, -1)
     } else {
       const key = target.closest<HTMLButtonElement>('[data-pin-key]')
-      if (!key?.dataset.pinKey || loginPin.value.length >= 6) return
+      if (!key?.dataset.pinKey || loginPin.value.length >= 5) return
       loginPin.value += key.dataset.pinKey
     }
     renderPinDigits()
     if (loginError) loginError.hidden = true
-    if (loginPin.value.length === 6) loginForm?.requestSubmit()
+    if (loginPin.value.length === 5) loginForm?.requestSubmit()
   })
 
   document.querySelector<HTMLButtonElement>('[data-logout]')?.addEventListener('click', async () => {
@@ -1754,7 +1754,7 @@ if (app) {
         showNotification(
           `Tarea eventual pendiente: ${newTask.title}`,
           'success',
-          'CheckApp · Tarea pendiente',
+          'Checkflow · Tarea pendiente',
         )
       }
     } catch (error) {

@@ -10,12 +10,12 @@ export type AppAccount = {
 export const ACCOUNTS_STORAGE_KEY = 'andy-app-accounts'
 
 export const INITIAL_ACCOUNTS: AppAccount[] = [
-  { username: 'admin', employeeName: 'Administrador', pin: '123456', role: 'admin' },
-  { username: 'user', employeeName: 'Usuario', pin: '000000', role: 'user' },
+  { username: 'admin', employeeName: 'Administrador', pin: '12345', role: 'admin' },
+  { username: 'user', employeeName: 'Usuario', pin: '00000', role: 'user' },
 ]
 
 export function isValidPin(pin: string): boolean {
-  return /^\d{6}$/.test(pin)
+  return /^\d{5}$/.test(pin)
 }
 
 export function parseAccountsJson(json: string): AppAccount[] {
@@ -90,7 +90,7 @@ export function addAccount(
   if (!normalizedEmployeeName || normalizedEmployeeName.length > 80) {
     throw new Error('El nombre del empleado debe tener entre 1 y 80 caracteres.')
   }
-  if (!isValidPin(pin)) throw new Error('El PIN debe contener exactamente 6 números.')
+  if (!isValidPin(pin)) throw new Error('El PIN debe contener exactamente 5 números.')
   if (role !== 'admin' && role !== 'user') throw new Error('El rol seleccionado no es válido.')
   if (accounts.some((account) => account.username.toLocaleLowerCase() === normalizedUsername.toLocaleLowerCase())) {
     throw new Error('Ese nombre de usuario ya existe.')

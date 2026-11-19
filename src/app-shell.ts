@@ -20,12 +20,11 @@ export function renderAppShell(): string {
       <form id="login-form" class="login-card">
         <img class="login-brand-logo" src="/brand-images/checkflow-logo.png" alt="Checkflow" />
         <p class="eyebrow">Acceso de usuarios</p>
-        <h1 id="login-title">CheckApp</h1>
         <p class="login-copy">Introduce tu código personal para acceder a las tareas del equipo.</p>
-        <input id="login-pin" name="pin" class="login-pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" aria-label="Código de acceso de seis dígitos" required />
+        <input id="login-pin" name="pin" class="login-pin-input" type="password" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="current-password" aria-label="Código de acceso de cinco dígitos" required />
         <div class="pin-entry" aria-label="Código de acceso">
           <div id="pin-digits" class="pin-digits" aria-hidden="true">
-            ${Array.from({ length: 6 }, (_, index) => `<span class="pin-digit" data-pin-digit="${index}"></span>`).join('')}
+            ${Array.from({ length: 5 }, (_, index) => `<span class="pin-digit" data-pin-digit="${index}"></span>`).join('')}
           </div>
           <div class="pin-keypad" aria-label="Teclado numérico">
             ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) =>
@@ -47,7 +46,7 @@ export function renderAppShell(): string {
         <div class="brand-wrap">
           <img class="brand-mark-img" src="/brand-images/checkflow-ico.png" alt="" aria-hidden="true" />
           <div>
-            <p class="brand-title">CheckApp</p>
+            <p class="brand-title">Checkflow</p>
             <p class="brand-subtitle">Gestión de tareas</p>
           </div>
         </div>
@@ -272,7 +271,7 @@ export function renderAppShell(): string {
               <form id="user-form" class="user-create-form">
                 <label>Número de empleado<input name="username" type="text" minlength="3" maxlength="24" pattern="[a-zA-Z0-9]{3,24}" autocomplete="off" required /></label>
                 <label>Nombre del empleado<input name="employeeName" type="text" maxlength="80" autocomplete="name" required /></label>
-                <label>PIN (6 números)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" required /></label>
+                <label>PIN (5 números)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="new-password" required /></label>
                 <label>Rol<select name="role"><option value="user">Usuario</option><option value="admin">Administrador</option></select></label>
                 <button class="primary-action" type="submit">Crear usuario</button>
               </form>

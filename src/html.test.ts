@@ -49,13 +49,23 @@ describe('escapeHtml', () => {
 
     expect(shell).toContain('src="/brand-images/checkflow-logo.png"')
     expect(shell).toContain('src="/brand-images/checkflow-ico.png"')
+    expect(shell).toContain('<p class="brand-title">Checkflow</p>')
     expect(shell).toContain('id="eventual-reminder-panel"')
     expect(page).toContain('href="/brand-images/checkflow-ico.png"')
+    expect(page).toContain('<title>Checkflow | Gestión de tareas</title>')
     expect(styles).toContain('--brand-forest: #074540')
     expect(styles).toContain('--brand-green: #288c6a')
     expect(styles).toContain('--brand-light: #b5dab8')
     expect(existsSync(new URL('../public/brand-images/checkflow-logo.png', import.meta.url))).toBe(true)
     expect(existsSync(new URL('../public/brand-images/checkflow-ico.png', import.meta.url))).toBe(true)
+  })
+
+  it('renders five-digit PIN fields and keypad indicators', () => {
+    const shell = renderAppShell()
+
+    expect(shell).toContain('pattern="[0-9]{5}" minlength="5" maxlength="5"')
+    expect(shell).toContain('PIN (5 números)')
+    expect(shell.match(/data-pin-digit=/g)).toHaveLength(5)
   })
 
   it('shows stock edit and delete actions without a manage dropdown', () => {
