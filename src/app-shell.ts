@@ -19,7 +19,6 @@ export function renderAppShell(): string {
     <section id="login-screen" class="login-screen" aria-labelledby="login-title">
       <form id="login-form" class="login-card">
         <img class="login-brand-logo" src="/brand-images/checkflow-logo.png" alt="Checkflow" />
-        <p class="eyebrow">Acceso de usuarios</p>
         <p class="login-copy">Introduce tu código personal para acceder a las tareas del equipo.</p>
         <input id="login-pin" name="pin" class="login-pin-input" type="password" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="current-password" aria-label="Código de acceso de cinco dígitos" required />
         <div class="pin-entry" aria-label="Código de acceso">
