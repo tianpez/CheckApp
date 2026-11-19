@@ -88,7 +88,7 @@ describe('local demo accounts', () => {
       role: 'admin',
     })
     expect(() => addAccount(accounts, 'ADMIN', 'Otro nombre', '12345', 'user')).toThrow('ya existe')
-    expect(() => addAccount(accounts, 'another', 'Nombre', '123456', 'user')).toThrow('5 números')
+    expect(() => addAccount(accounts, 'another', 'Nombre', '1234', 'user')).toThrow('5 números')
     expect(() => addAccount(accounts, 'otheruser', 'Nombre', '45678', 'user')).toThrow('ya está asignado')
     expect(() => addAccount(accounts, 'bad name', 'Nombre', '12345', 'user')).toThrow('alfanuméricos')
     expect(() => addAccount(accounts, 'validuser', ' ', '65432', 'user')).toThrow('nombre del empleado')

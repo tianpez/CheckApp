@@ -189,14 +189,14 @@ try {
   const expectedTables = new Set(Object.keys(insertColumns))
   if (knownTables.size !== expectedTables.size ||
     [...knownTables].some((table) => !expectedTables.has(table))) {
-    throw new Error('El esquema SQLite no coincide con las tablas conocidas de Checkflow.')
+    throw new Error('El esquema SQLite no coincide con las tablas conocidas de CheckApp.')
   }
   for (const table of Object.keys(insertColumns)) {
     if (!knownTables.has(table)) throw new Error(`No se encontró la tabla SQLite ${table}.`)
   }
 
   const output = [
-    '-- Checkflow SQLite data export for import into a newly-created MariaDB database.',
+    '-- CheckApp SQLite data export for import into a newly-created MariaDB database.',
     '-- Select the target database in phpMyAdmin before importing this file.',
     'SET NAMES utf8mb4;',
     'SET FOREIGN_KEY_CHECKS = 0;',

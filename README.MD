@@ -1,10 +1,10 @@
-# Checkflow
+# CheckApp
 
 **Gestión de tareas y operaciones para equipos de hostelería**
 
 **Autor:** Sebastián López
 
-Checkflow es una aplicación web adaptable a móviles y escritorio para organizar tareas operativas, consultar procedimientos de servicio y controlar el inventario de un establecimiento. Los datos se centralizan en una API Node.js con SQLite para compartirlos entre los dispositivos conectados.
+CheckApp es una aplicación web adaptable a móviles y escritorio para organizar tareas operativas, consultar procedimientos de servicio y controlar el inventario de un establecimiento. Los datos se centralizan en una API Node.js con SQLite para compartirlos entre los dispositivos conectados.
 
 ## Contenido
 
@@ -63,7 +63,7 @@ npm install
 npm run dev
 ```
 
-El comando inicia la interfaz de Vite en `http://localhost:5174` y la API en el puerto `3001`. Para acceder desde un móvil conectado a la misma red, abre `http://<IP-del-equipo-servidor>:5174`. El equipo que ejecuta Checkflow debe permanecer encendido.
+El comando inicia la interfaz de Vite en `http://localhost:5174` y la API en el puerto `3001`. Para acceder desde un móvil conectado a la misma red, abre `http://<IP-del-equipo-servidor>:5174`. El equipo que ejecuta CheckApp debe permanecer encendido.
 
 ### Pruebas y compilación
 
@@ -118,7 +118,7 @@ npm run export:mariadb -- data\checkapp.sqlite.backup-20261114T120000Z data\chec
 
 Sustituye el nombre de ejemplo por el de tu copia. El proceso comprueba la integridad de la base y las relaciones entre sus tablas. En HestiaCP, crea una base MariaDB vacía, selecciónala en phpMyAdmin e importa el archivo generado. El SQL no crea la base ni el usuario, y no debe importarse sobre tablas que ya contengan datos.
 
-La exportación prepara el esquema y los registros, pero no reconfigura el servidor de Checkflow para utilizar MariaDB. El archivo incluye hashes de códigos de acceso y datos de sesión: mantenlo privado y fuera de carpetas públicas y del repositorio.
+La exportación prepara el esquema y los registros, pero no reconfigura el servidor de CheckApp para utilizar MariaDB. El archivo incluye hashes de códigos de acceso y datos de sesión: mantenlo privado y fuera de carpetas públicas y del repositorio.
 
 ## Estructura del proyecto
 

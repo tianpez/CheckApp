@@ -645,7 +645,7 @@ app.get('/api/auth/session', (request, response) => {
         .json({ error: error.message })
       return
     }
-    console.error('Error en la API de Checkflow:', error)
+    console.error('Error en la API de CheckApp:', error)
     response.status(500).json({ error: 'No se pudo completar la operación en la base de datos.' })
   }
   app.use(errorHandler)

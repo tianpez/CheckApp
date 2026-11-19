@@ -278,7 +278,7 @@ if (app) {
   const showNotification = (
     message: string,
     kind: 'success' | 'warning' = 'success',
-    desktopTitle = 'Checkflow · Tarea completada',
+    desktopTitle = 'CheckApp · Tarea completada',
   ) => {
     void Swal.fire({
       toast: true,
@@ -1754,7 +1754,7 @@ if (app) {
         showNotification(
           `Tarea eventual pendiente: ${newTask.title}`,
           'success',
-          'Checkflow · Tarea pendiente',
+          'CheckApp · Tarea pendiente',
         )
       }
     } catch (error) {

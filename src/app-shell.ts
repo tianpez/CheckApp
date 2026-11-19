@@ -46,7 +46,7 @@ export function renderAppShell(): string {
         <div class="brand-wrap">
           <img class="brand-mark-img" src="/brand-images/checkflow-ico.png" alt="" aria-hidden="true" />
           <div>
-            <p class="brand-title">Checkflow</p>
+            <p class="brand-title">CheckApp</p>
             <p class="brand-subtitle">Gestión de tareas</p>
           </div>
         </div>
