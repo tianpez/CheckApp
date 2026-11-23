@@ -812,6 +812,11 @@ img {
   text-align: left;
 }
 
+.library-article-open:focus-visible {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: -4px;
+  border-radius: 18px;
+}
 
 .library-article-image {
   display: block;
@@ -821,12 +826,6 @@ img {
   object-fit: cover;
   background: rgba(226, 216, 199, 0.35);
 }
-.library-article-open:focus-visible {
-  outline: 3px solid var(--accent-strong);
-  outline-offset: -4px;
-  border-radius: 18px;
-}
-
 
 .library-article-heading {
   display: grid;
