@@ -98,6 +98,7 @@ export function renderAppShell(): string {
               <h2 id="library-title">Biblioteca de servicio</h2>
               <p class="section-copy">Consulta procedimientos, presentaciones y recetas del equipo.</p>
             </div>
+            <button class="primary-action" type="button" data-add-library data-admin-only hidden>Añadir</button>
           </div>
           <div class="library-search-panel">
             <label for="library-search">
@@ -282,10 +283,16 @@ export function renderAppShell(): string {
             <div class="admin-management-heading">
               <div>
                 <p class="eyebrow">Contenido de servicio</p>
-                <h3>Agregar tutorial a la Biblioteca</h3>
+                <h3>Administración de la Biblioteca</h3>
                 <p class="section-copy">Crea una guía con pasos, palabras clave y hasta 8 imágenes. El tutorial aparecerá en Biblioteca para todo el equipo.</p>
               </div>
+              <button class="primary-action" type="button" data-add-library-item>Añadir tutorial</button>
             </div>
+            <div id="library-admin-list" class="library-admin-table" aria-label="Tutoriales de la Biblioteca"></div>
+            <div id="library-admin-form-wrap" hidden>
+              <div class="library-admin-form-heading">
+                <h4 id="library-admin-form-title">Nuevo tutorial</h4>
+              </div>
             <form id="library-tutorial-form" class="library-tutorial-form">
               <div class="form-row">
                 <label>
@@ -323,9 +330,11 @@ export function renderAppShell(): string {
                 </div>
               </div>
               <div class="dialog-actions">
-                <button class="primary-action" type="submit">Guardar tutorial</button>
+                <button class="primary-action" type="submit" id="library-tutorial-submit">Guardar tutorial</button>
+                <button class="calendar-today-btn" type="button" data-cancel-library-edit>Cancelar</button>
               </div>
             </form>
+            </div>
           </section>
         </section>
 

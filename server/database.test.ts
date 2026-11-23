@@ -146,6 +146,33 @@ describe('SQLite-backed application API', () => {
     await user.get(created.images[1]).expect(200)
     await admin.get(`/api/library/${created.id}/image/8`).expect(400)
     await admin.get(`/api/library/${created.id}/image`).expect(200)
+
+    await user.put(`/api/library/${created.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({ article })
+      .expect(403)
+    const updatedLibrary = await admin.put(`/api/library/${created.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        article: {
+          ...article,
+          title: 'Estación fría actualizada',
+        },
+      })
+      .expect(200)
+    expect(updatedLibrary.body.articles).toContainEqual(expect.objectContaining({
+      id: created.id,
+      title: 'Estación fría actualizada',
+    }))
+
+    await user.delete(`/api/library/${created.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .expect(403)
+    const deletedLibrary = await admin.delete(`/api/library/${created.id}`)
+      .set('X-CheckApp-Request', 'database-write')
+      .expect(200)
+    expect(deletedLibrary.body.articles).toHaveLength(8)
+    expect(deletedLibrary.body.articles).not.toContainEqual(expect.objectContaining({ id: created.id }))
   })
 
   it('authenticates the demo codes through the API and rejects invalid codes', async () => {
@@ -301,6 +328,30 @@ describe('SQLite-backed application API', () => {
       role: 'user',
     })
 
+    const updated = await admin.put('/api/accounts/1042')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        employeeNumber: '1043',
+        employeeName: 'María Ruiz Torres',
+        pin: '',
+        role: 'user',
+      })
+      .expect(200)
+    expect(updated.body.accounts).toContainEqual({
+      username: '1043',
+      employeeName: 'María Ruiz Torres',
+      role: 'user',
+    })
+    await admin.put('/api/accounts/1043')
+      .set('X-CheckApp-Request', 'database-write')
+      .send({
+        employeeNumber: 'admin',
+        employeeName: 'Número duplicado',
+        pin: '',
+        role: 'user',
+      })
+      .expect(400, { error: 'Ese número de empleado ya está asignado a otra cuenta.' })
+
     await employee.post('/api/auth/login')
       .set('X-CheckApp-Request', 'database-write')
       .send({ pin: '45678' })
@@ -333,16 +384,16 @@ describe('SQLite-backed application API', () => {
     const savedTask = database.getTaskOccurrences(today, today).find((item) => item.id === task.id)
     expect(savedTask).toMatchObject({
       completed: true,
-      completedBy: '1042',
-      completedByName: 'María Ruiz',
+      completedBy: '1043',
+      completedByName: 'María Ruiz Torres',
     })
     const adminView = await admin.get('/api/tasks/history').expect(200)
     expect(adminView.body.tasks.find((item: { id: number; date: string }) =>
       item.id === task.id && item.date === today))
-      .toMatchObject({ completedBy: '1042', completedByName: 'María Ruiz' })
+      .toMatchObject({ completedBy: '1043', completedByName: 'María Ruiz Torres' })
     expect(database.raw.prepare(
       'SELECT completed_by, completed_by_name FROM task_occurrences WHERE task_id = ? AND date = ?',
-    ).get(task.id, today)).toEqual({ completed_by: '1042', completed_by_name: 'María Ruiz' })
+    ).get(task.id, today)).toEqual({ completed_by: '1043', completed_by_name: 'María Ruiz Torres' })
   })
 
   it('limits history to seven days and lets admins mark past tasks as not done without reopening checklists', async () => {

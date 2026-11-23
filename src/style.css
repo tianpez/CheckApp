@@ -841,8 +841,8 @@ img {
 .library-category {
   width: fit-content;
   padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(184, 107, 63, 0.1);
+  border-radius: 959px;
+  background: rgba(37, 37, 37, 0.1);
   color: var(--accent-strong);
   font-size: 0.69rem;
   font-weight: 700;
@@ -2272,7 +2272,7 @@ img {
 
 .user-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(170px, 1.3fr) auto minmax(120px, 0.8fr) auto;
+  grid-template-columns: minmax(130px, 0.8fr) repeat(2, minmax(150px, 1fr)) minmax(110px, 0.7fr) minmax(120px, 0.8fr) auto;
   align-items: center;
   gap: 14px;
   padding: 12px 14px;
@@ -2312,6 +2312,60 @@ img {
   color: var(--ink);
   cursor: pointer;
   font-weight: 700;
+}
+
+.user-row-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: stretch;
+}
+
+.user-row-actions button {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.library-admin-table {
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+
+.library-admin-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.library-admin-table th,
+.library-admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.library-admin-table th {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.library-admin-actions {
+  white-space: nowrap;
+}
+
+.library-admin-actions button {
+  margin: 2px;
+  padding: 7px 9px;
+  border-radius: 8px;
+}
+
+.library-admin-form-heading {
+  margin: 12px 0 8px;
 }
 
 .daily-checklist-empty {

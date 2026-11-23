@@ -638,6 +638,53 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       )
       return this.getLibrary()
     },
+    updateLibraryArticle(id: string, value: unknown): LibraryArticle[] {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Los datos del tutorial no son válidos.')
+      }
+      const row = database.prepare(
+        'SELECT image, images_json FROM library_articles WHERE id = ?',
+      ).get(id) as { image: unknown; images_json: unknown } | undefined
+      if (!row) throw new Error('No se encontró el tutorial.')
+      const storedImages = typeof row.images_json === 'string'
+        ? JSON.parse(row.images_json) as unknown
+        : []
+      let existingImages: string[] = Array.isArray(storedImages)
+        ? storedImages.filter((image): image is string =>
+          typeof image === 'string' && image.startsWith('data:image/jpeg;base64,'),
+        )
+        : []
+      if (existingImages.length === 0 && typeof row.image === 'string' &&
+        row.image.startsWith('data:image/jpeg;base64,')) {
+        existingImages = [row.image]
+      }
+      const input = value as Record<string, unknown>
+      const article = parseLibraryArticleInput({
+        ...input,
+        images: Array.isArray(input.images) && input.images.length > 0
+          ? input.images
+          : existingImages,
+      })
+      database.prepare(`
+        UPDATE library_articles
+        SET category = ?, title = ?, summary = ?, keywords_json = ?, steps_json = ?, image = NULL, images_json = ?
+        WHERE id = ?
+      `).run(
+        article.category,
+        article.title,
+        article.summary,
+        JSON.stringify(article.keywords),
+        JSON.stringify(article.steps),
+        JSON.stringify(article.images),
+        id,
+      )
+      return this.getLibrary()
+    },
+    deleteLibraryArticle(id: string): LibraryArticle[] {
+      const result = database.prepare('DELETE FROM library_articles WHERE id = ?').run(id)
+      if (result.changes === 0) throw new Error('No se encontró el tutorial.')
+      return this.getLibrary()
+    },
     getUsers(): PublicAccount[] {
       return database.prepare('SELECT username, employee_name AS employeeName, role FROM users ORDER BY username COLLATE NOCASE')
         .all() as PublicAccount[]
@@ -653,6 +700,14 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
       }
       if (!/^\d{5}$/.test(pin)) throw new Error('El PIN debe contener exactamente 5 números.')
       if (role !== 'admin' && role !== 'user') throw new Error('El rol seleccionado no es válido.')
+      const usernameOwner = database.prepare(
+        'SELECT id FROM users WHERE username = ? COLLATE NOCASE',
+      ).get(normalizedUsername)
+      if (usernameOwner) throw new Error('Ese número de empleado ya está asignado a otra cuenta.')
+      const pinOwner = database.prepare('SELECT pin_hash FROM users').all() as Array<{ pin_hash: string }>
+      if (pinOwner.some((item) => verifyPin(pin, item.pin_hash))) {
+        throw new Error('Ese código PIN ya está asignado a otra cuenta.')
+      }
       database.prepare('INSERT INTO users (username, employee_name, pin_hash, role) VALUES (?, ?, ?, ?)')
         .run(normalizedUsername, normalizedEmployeeName, hashPin(pin), role)
       return this.getUsers()
@@ -666,6 +721,56 @@ export function createDatabase(path = 'data/checkapp.sqlite', now = new Date()) 
         'UPDATE users SET employee_name = ? WHERE username = ? COLLATE NOCASE',
       ).run(normalizedEmployeeName, username)
       if (result.changes === 0) throw new Error('No se encontró el usuario.')
+      return this.getUsers()
+    },
+    updateUser(
+      username: string,
+      employeeNumber: string,
+      employeeName: string,
+      pin: string,
+      role: UserRole,
+    ): PublicAccount[] {
+      const normalizedNumber = employeeNumber.trim()
+      const normalizedName = employeeName.trim()
+      if (!/^[a-zA-Z0-9]{3,24}$/.test(normalizedNumber)) {
+        throw new Error('El número de empleado debe tener entre 3 y 24 caracteres alfanuméricos.')
+      }
+      if (!normalizedName || normalizedName.length > 80) {
+        throw new Error('El nombre del empleado debe tener entre 1 y 80 caracteres.')
+      }
+      if (pin && !/^\d{5}$/.test(pin)) {
+        throw new Error('El PIN debe contener exactamente 5 números.')
+      }
+      if (role !== 'admin' && role !== 'user') throw new Error('El rol seleccionado no es válido.')
+      const existing = database.prepare(
+        'SELECT id, role, pin_hash FROM users WHERE username = ? COLLATE NOCASE',
+      ).get(username) as { id: number; role: UserRole; pin_hash: string } | undefined
+      if (!existing) throw new Error('No se encontró el usuario.')
+      const numberOwner = database.prepare(
+        'SELECT id FROM users WHERE username = ? COLLATE NOCASE',
+      ).get(normalizedNumber) as { id: number } | undefined
+      if (numberOwner && numberOwner.id !== existing.id) {
+        throw new Error('Ese número de empleado ya está asignado a otra cuenta.')
+      }
+      if (pin) {
+        const pinHashes = database.prepare(
+          'SELECT id, pin_hash FROM users',
+        ).all() as Array<{ id: number; pin_hash: string }>
+        if (pinHashes.some((item) => item.id !== existing.id && verifyPin(pin, item.pin_hash))) {
+          throw new Error('Ese código PIN ya está asignado a otra cuenta.')
+        }
+      }
+      if (existing.role === 'admin' && role === 'user') {
+        const administrators = database.prepare(
+          "SELECT COUNT(*) AS count FROM users WHERE role = 'admin'",
+        ).get() as { count: number }
+        if (administrators.count === 1) throw new Error('Debe quedar al menos un usuario administrador.')
+      }
+      database.prepare(`
+        UPDATE users
+        SET username = ?, employee_name = ?, role = ?, pin_hash = CASE WHEN ? = '' THEN pin_hash ELSE ? END
+        WHERE id = ?
+      `).run(normalizedNumber, normalizedName, role, pin, pin ? hashPin(pin) : '', existing.id)
       return this.getUsers()
     },
     updateUserRole(username: string, role: UserRole): PublicAccount[] {

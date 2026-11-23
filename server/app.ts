@@ -476,6 +476,30 @@ app.get('/api/auth/session', (request, response) => {
     }
   })
 
+  app.put('/api/library/:id', authenticate, (request, response, next) => {
+    try {
+      requireRequestToken(request)
+      requireAdmin(accountFromResponse(response))
+      const id = request.params.id
+      if (typeof id !== 'string') throw new HttpError(400, 'El identificador del tutorial no es válido.')
+      response.json({ articles: database.updateLibraryArticle(id, request.body?.article) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  app.delete('/api/library/:id', authenticate, (request, response, next) => {
+    try {
+      requireRequestToken(request)
+      requireAdmin(accountFromResponse(response))
+      const id = request.params.id
+      if (typeof id !== 'string') throw new HttpError(400, 'El identificador del tutorial no es válido.')
+      response.json({ articles: database.deleteLibraryArticle(id) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
   app.get('/api/stock', authenticate, (_request, response) => {
     requireAdmin(accountFromResponse(response))
     response.json({ stock: database.getStock() })
@@ -599,6 +623,32 @@ app.get('/api/auth/session', (request, response) => {
       const username = request.params.username
       if (typeof username !== 'string') throw new HttpError(400, 'El usuario indicado no es válido.')
       response.json({ accounts: database.updateUserRole(username, request.body.role) })
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  app.put('/api/accounts/:username', authenticate, (request, response, next) => {
+    try {
+      requireRequestToken(request)
+      requireAdmin(accountFromResponse(response))
+      const username = request.params.username
+      if (typeof username !== 'string' ||
+        typeof request.body?.employeeNumber !== 'string' ||
+        typeof request.body?.employeeName !== 'string' ||
+        typeof request.body?.pin !== 'string' ||
+        !isRole(request.body?.role)) {
+        throw new HttpError(400, 'Los datos del empleado no son válidos.')
+      }
+      response.json({
+        accounts: database.updateUser(
+          username,
+          request.body.employeeNumber,
+          request.body.employeeName,
+          request.body.pin,
+          request.body.role,
+        ),
+      })
     } catch (error) {
       next(error)
     }

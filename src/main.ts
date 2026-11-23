@@ -69,6 +69,10 @@ if (app) {
   const libraryTutorialForm = document.querySelector<HTMLFormElement>('#library-tutorial-form')
   const libraryTutorialImage = document.querySelector<HTMLInputElement>('#library-tutorial-image')
   const libraryTutorialImagePreview = document.querySelector<HTMLDivElement>('#library-tutorial-image-preview')
+  const libraryAdminList = document.querySelector<HTMLDivElement>('#library-admin-list')
+  const libraryAdminFormWrap = document.querySelector<HTMLElement>('#library-admin-form-wrap')
+  const libraryAdminFormTitle = document.querySelector<HTMLElement>('#library-admin-form-title')
+  const libraryTutorialSubmit = document.querySelector<HTMLButtonElement>('#library-tutorial-submit')
   const libraryDetailDialog = document.querySelector<HTMLDialogElement>('#library-detail-dialog')
   const libraryDetailContent = document.querySelector<HTMLDivElement>('#library-detail-content')
   let accounts: PublicAccount[] = []
@@ -209,22 +213,27 @@ if (app) {
           <strong>${escapeHtml(account.employeeName)}</strong>
           <span>Número: ${escapeHtml(account.username)}${account.username === currentUser?.username ? ' · Sesión actual' : ''}</span>
         </div>
-        <label>
-          Nombre del empleado
-          <input data-employee-name="${escapeHtml(account.username)}" type="text" maxlength="80" value="${escapeHtml(account.employeeName)}" aria-label="Nombre del empleado ${escapeHtml(account.username)}" required />
+        <label>Número de empleado
+          <input data-edit-employee-number="${escapeHtml(account.username)}" type="text" minlength="3" maxlength="24" pattern="[a-zA-Z0-9]{3,24}" value="${escapeHtml(account.username)}" required />
         </label>
-        <button class="calendar-today-btn" type="button" data-save-employee-name="${escapeHtml(account.username)}">Guardar nombre</button>
-        <label>
-          Rol
-          <select data-user-role="${escapeHtml(account.username)}" aria-label="Rol de ${escapeHtml(account.username)}">
+        <label>Nombre del empleado
+          <input data-edit-employee-name="${escapeHtml(account.username)}" type="text" maxlength="80" value="${escapeHtml(account.employeeName)}" required />
+        </label>
+        <label>PIN (dejar vacío para conservar)
+          <input data-edit-employee-pin="${escapeHtml(account.username)}" type="password" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="new-password" />
+        </label>
+        <label>Rol
+          <select data-edit-employee-role="${escapeHtml(account.username)}">
             <option value="user" ${account.role === 'user' ? 'selected' : ''}>Usuario</option>
             <option value="admin" ${account.role === 'admin' ? 'selected' : ''}>Administrador</option>
           </select>
         </label>
-        ${account.username === currentUser?.username
-          ? '<span class="user-current-label">Conectado</span>'
-          //establecer un botón de eliminar con confirmación para el resto de los usuarios
-          : `<button type="button" class="admin-delete" data-remove-user="${escapeHtml(account.username)}">Eliminar</button>`}
+        <div class="user-row-actions">
+          <button class="calendar-today-btn" type="button" data-save-employee="${escapeHtml(account.username)}">Guardar</button>
+          ${account.username === currentUser?.username
+            ? '<span class="user-current-label">Conectado</span>'
+            : `<button type="button" class="admin-delete" data-remove-user="${escapeHtml(account.username)}">Eliminar</button>`}
+        </div>
       </article>
     `).join('')
   }
@@ -269,6 +278,8 @@ if (app) {
     renderCalendar()
     renderTaskAdmin()
     renderUserList()
+    renderLibrary()
+    renderLibraryAdmin()
     renderStock()
     if (showTasks || (!isAdmin() && ['calendar', 'stock', 'admin'].includes(activeView))) {
       setActiveView('tasks')
@@ -321,6 +332,39 @@ if (app) {
     category: libraryCategory,
     resultCount: libraryResultCount,
   })
+  let editingLibraryId: string | null = null
+
+  const resetLibraryForm = () => {
+    editingLibraryId = null
+    libraryTutorialForm?.reset()
+    pendingLibraryImages = []
+    libraryImageSelection++
+    if (libraryTutorialImage) libraryTutorialImage.required = true
+    setLibraryImagePreview()
+    if (libraryAdminFormTitle) libraryAdminFormTitle.textContent = 'Nuevo tutorial'
+    if (libraryTutorialSubmit) libraryTutorialSubmit.textContent = 'Guardar tutorial'
+  }
+
+  const renderLibraryAdmin = () => {
+    if (!libraryAdminList || !isAdmin()) return
+    libraryAdminList.innerHTML = libraryData.length
+      ? `
+        <table>
+          <thead><tr><th>Título</th><th>Categoría</th><th>Resumen</th><th>Acciones</th></tr></thead>
+          <tbody>${libraryData.map((article) => `
+            <tr>
+              <td>${escapeHtml(article.title)}</td>
+              <td>${escapeHtml(article.category)}</td>
+              <td>${escapeHtml(article.summary)}</td>
+              <td class="library-admin-actions">
+                <button class="calendar-today-btn" type="button" data-edit-library="${escapeHtml(article.id)}">Editar</button>
+                <button class="admin-delete" type="button" data-delete-library="${escapeHtml(article.id)}">Eliminar</button>
+              </td>
+            </tr>
+          `).join('')}</tbody>
+        </table>`
+      : '<p class="library-empty">La Biblioteca todavía está vacía.</p>'
+  }
 
   const renderStock = () => {
     renderStockView(stock, isAdmin(), {
@@ -378,6 +422,7 @@ if (app) {
     accounts = data.accounts ?? []
     await loadTaskOccurrences()
     renderLibrary()
+    renderLibraryAdmin()
     syncSessionUI(showTasks)
   }
 
@@ -1171,24 +1216,39 @@ if (app) {
   userList?.addEventListener('click', async (event) => {
     const target = event.target
     if (!(target instanceof Element) || !isAdmin()) return
-    const saveNameButton = target.closest<HTMLButtonElement>('[data-save-employee-name]')
-    if (saveNameButton?.dataset.saveEmployeeName) {
-      const username = saveNameButton.dataset.saveEmployeeName
-      const nameInput = userList.querySelector<HTMLInputElement>(
-        `[data-employee-name="${CSS.escape(username)}"]`,
+    const saveButton = target.closest<HTMLButtonElement>('[data-save-employee]')
+    if (saveButton?.dataset.saveEmployee) {
+      const username = saveButton.dataset.saveEmployee
+      const numberInput = userList.querySelector<HTMLInputElement>(
+        `[data-edit-employee-number="${CSS.escape(username)}"]`,
       )
-      if (!nameInput || !nameInput.reportValidity()) return
+      const nameInput = userList.querySelector<HTMLInputElement>(
+        `[data-edit-employee-name="${CSS.escape(username)}"]`,
+      )
+      const pinInput = userList.querySelector<HTMLInputElement>(
+        `[data-edit-employee-pin="${CSS.escape(username)}"]`,
+      )
+      const roleInput = userList.querySelector<HTMLSelectElement>(
+        `[data-edit-employee-role="${CSS.escape(username)}"]`,
+      )
+      if (!numberInput || !nameInput || !pinInput || !roleInput ||
+        !numberInput.reportValidity() || !nameInput.reportValidity() || !pinInput.reportValidity()) return
       try {
         const result = await apiRequest<{ accounts: PublicAccount[] }>(
-          `/accounts/${encodeURIComponent(username)}/name`,
-          'PATCH',
-          { employeeName: nameInput.value },
+          `/accounts/${encodeURIComponent(username)}`,
+          'PUT',
+          {
+            employeeNumber: numberInput.value,
+            employeeName: nameInput.value,
+            pin: pinInput.value,
+            role: roleInput.value,
+          },
         )
         accounts = result.accounts
         currentUser = accounts.find((account) => account.username === currentUser?.username) ?? null
         renderUserList()
         syncSessionUI(false)
-        showNotification('Nombre del empleado actualizado.')
+        showNotification('Datos del empleado actualizados.')
       } catch (error) {
         showNotification(error instanceof Error ? error.message : 'No se pudo actualizar el nombre.', 'warning')
       }
@@ -1271,6 +1331,19 @@ if (app) {
   document.querySelector<HTMLButtonElement>('[data-show-library]')?.addEventListener('click', () => setActiveView('library'))
   document.querySelector<HTMLButtonElement>('[data-show-stock]')?.addEventListener('click', () => setActiveView('stock'))
   document.querySelector<HTMLButtonElement>('[data-show-admin]')?.addEventListener('click', () => setActiveView('admin'))
+  document.querySelector<HTMLButtonElement>('[data-add-library]')?.addEventListener('click', () => {
+    if (!isAdmin()) return
+    setActiveView('admin')
+    setAdminTab('library')
+    resetLibraryForm()
+    if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = false
+    libraryAdminFormWrap?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+  document.querySelector<HTMLButtonElement>('[data-add-library-item]')?.addEventListener('click', () => {
+    resetLibraryForm()
+    if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = false
+    libraryAdminFormWrap?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
   librarySearch?.addEventListener('input', renderLibrary)
   libraryCategory?.addEventListener('change', renderLibrary)
   libraryArticles?.addEventListener('click', (event) => {
@@ -1337,7 +1410,7 @@ if (app) {
       return
     }
     if (!libraryTutorialForm.reportValidity()) return
-    if (pendingLibraryImages.length === 0) {
+    if (!editingLibraryId && pendingLibraryImages.length === 0) {
       showNotification('Selecciona al menos una imagen para el tutorial.', 'warning')
       return
     }
@@ -1357,17 +1430,82 @@ if (app) {
       images: pendingLibraryImages,
     }
 
+    const wasEditing = Boolean(editingLibraryId)
     try {
-      const result = await apiRequest<{ articles: LibraryArticle[] }>('/library', 'POST', { article })
+      const result = editingLibraryId
+        ? await apiRequest<{ articles: LibraryArticle[] }>(
+          `/library/${encodeURIComponent(editingLibraryId)}`,
+          'PUT',
+          { article },
+        )
+        : await apiRequest<{ articles: LibraryArticle[] }>('/library', 'POST', { article })
       libraryData = result.articles
-      libraryTutorialForm.reset()
-      pendingLibraryImages = []
-      setLibraryImagePreview()
+      resetLibraryForm()
+      if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = true
       renderLibrary()
-      showNotification('Tutorial agregado a la Biblioteca.')
+      renderLibraryAdmin()
+      showNotification(wasEditing ? 'Tutorial actualizado.' : 'Tutorial agregado a la Biblioteca.')
     } catch (error) {
       showNotification(error instanceof Error ? error.message : 'No se pudo guardar el tutorial.', 'warning')
     }
+  })
+
+  libraryAdminList?.addEventListener('click', async (event) => {
+    const target = event.target
+    if (!(target instanceof Element) || !isAdmin()) return
+    const editButton = target.closest<HTMLButtonElement>('[data-edit-library]')
+    if (editButton?.dataset.editLibrary) {
+      const article = libraryData.find((item) => item.id === editButton.dataset.editLibrary)
+      if (!article || !libraryTutorialForm) return
+      editingLibraryId = article.id
+      pendingLibraryImages = []
+      libraryImageSelection++
+      if (libraryTutorialImage) libraryTutorialImage.required = false
+      setLibraryImagePreview()
+      const category = libraryTutorialForm.elements.namedItem('category')
+      const title = libraryTutorialForm.elements.namedItem('title')
+      const summary = libraryTutorialForm.elements.namedItem('summary')
+      const keywords = libraryTutorialForm.elements.namedItem('keywords')
+      const steps = libraryTutorialForm.elements.namedItem('steps')
+      if (category instanceof HTMLSelectElement) category.value = article.category
+      if (title instanceof HTMLInputElement) title.value = article.title
+      if (summary instanceof HTMLTextAreaElement) summary.value = article.summary
+      if (keywords instanceof HTMLTextAreaElement) keywords.value = article.keywords.join(', ')
+      if (steps instanceof HTMLTextAreaElement) steps.value = article.steps.join('\n')
+      if (libraryAdminFormTitle) libraryAdminFormTitle.textContent = 'Editar tutorial'
+      if (libraryTutorialSubmit) libraryTutorialSubmit.textContent = 'Actualizar tutorial'
+      if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = false
+      libraryAdminFormWrap?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    const deleteButton = target.closest<HTMLButtonElement>('[data-delete-library]')
+    if (!deleteButton?.dataset.deleteLibrary) return
+    const article = libraryData.find((item) => item.id === deleteButton.dataset.deleteLibrary)
+    if (!article) return
+    const confirmed = await confirmAction(
+      `Se eliminará el tutorial "${article.title}". Esta acción no se puede deshacer.`,
+      'Sí, eliminar',
+    )
+    if (!confirmed) return
+    try {
+      const result = await apiRequest<{ articles: LibraryArticle[] }>(
+        `/library/${encodeURIComponent(article.id)}`,
+        'DELETE',
+      )
+      libraryData = result.articles
+      resetLibraryForm()
+      if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = true
+      renderLibrary()
+      renderLibraryAdmin()
+      showNotification('Tutorial eliminado.')
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'No se pudo eliminar el tutorial.', 'warning')
+    }
+  })
+
+  document.querySelector<HTMLButtonElement>('[data-cancel-library-edit]')?.addEventListener('click', () => {
+    resetLibraryForm()
+    if (libraryAdminFormWrap) libraryAdminFormWrap.hidden = true
   })
 
   stockSection?.addEventListener('click', (event) => {
